@@ -1,0 +1,8 @@
+================================================================================
+Linker Errors
+Generated: 2026-06-05T05:52:47.848Z
+Total Errors: 1
+================================================================================
+
+[LNK4098] (MSVC)
+defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library [D:\Dev\voxelgame\build\voxelgame.vcxproj]
