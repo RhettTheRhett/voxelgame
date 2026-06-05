@@ -1,9 +1,24 @@
+# Executables and binaries
 *.exe
 *.obj
 *.ilk
 *.pdb
 *.user
+
+# Visual Studio
 .vs/
 x64/
 Debug/
 Release/
+
+# CMake
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+CTestTestfile.cmake
+Makefile
+
+# Optional VS Code
+.vscode/
