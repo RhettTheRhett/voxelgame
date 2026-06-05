@@ -1,31 +1,75 @@
 #include "raylib.h"
 
-int main() {
+struct Vec2 {
+    float x;
+    float y;
+};
 
-	float fps = 60.0;
+struct Player {
+    Vec2 position;
+    Vec2 velocity;
+    float speed;
+    int width;
+    int height;
+};
 
-	InitWindow(800, 600, "Voxel Game");
-	SetTargetFPS(fps);
+void UpdatePlayer(Player& player, float deltaTime)
+{
+    // YOUR CODE HERE
+	player.velocity.x= 0;
+	player.velocity.y = 0;
+    // handle WASD input
+	if(IsKeyDown(KEY_W)) player.velocity.y -= player.speed * deltaTime;
+	if(IsKeyDown(KEY_S)) player.velocity.y += player.speed * deltaTime;
+	if(IsKeyDown(KEY_A)) player.velocity.x -= player.speed * deltaTime;
+	if(IsKeyDown(KEY_D)) player.velocity.x += player.speed * deltaTime;
+    // apply velocity
+	player.position.x += player.velocity.x;
+	player.position.y += player.velocity.y;
+    // clamp to screen bounds (fix the jitter problem you identified)
+	// clamp x
+	if (player.position.x < 0) player.position.x = 0;
+	if (player.position.x + player.width > GetScreenWidth()) player.position.x = GetScreenWidth() - player.width;
+	// clamp y
+	if (player.position.y < 0) player.position.y = 0;
+	if (player.position.y + player.height > GetScreenHeight()) player.position.y = GetScreenHeight() - player.height;
+	
+	
+	
+}
 
-	float xPos = 0.0f;
+void DrawPlayer(const Player& player)
+{
+	DrawRectangle(player.position.x, player.position.y, player.width, player.height, DARKBLUE);
+}
 
-	while (!WindowShouldClose()) {
+int main()
+{
+    InitWindow(800, 600, "Voxel Game");
+    SetTargetFPS(60);
 
-		float deltaTime = GetFrameTime();
-		xPos += 100.0f * deltaTime;
-		if(xPos > 800) {
-			xPos = 0;
-		 }
+    Player player;
+	player.position = {100, 100};
+	player.velocity = {0, 0};
+	player.speed = 200.0f;
+	player.width = 40;
+	player.height = 40;
+	
+    while (!WindowShouldClose())
+    {
+        float deltaTime = GetFrameTime();
+        UpdatePlayer(player, deltaTime);
 
-		BeginDrawing();
-		ClearBackground(RAYWHITE);
-		DrawRectangle(xPos, 280, 40, 40, DARKBLUE);
-		DrawText(TextFormat("FPS: %d", GetFPS()), 10, 10, 20, DARKGRAY);
-		DrawText(TextFormat("DeltaTime: %.4f", deltaTime), 10, 35, 20, DARKGRAY);
-		EndDrawing();
+        BeginDrawing();
+            ClearBackground(RAYWHITE);
+			DrawPlayer(player);
+			DrawText(TextFormat("X: %.1f Y: %.1f", player.position.x, player.position.y), 10, 10, 20, DARKGRAY);
+			DrawText(TextFormat("X: %.1f Y: %.1f", player.velocity.x, player.velocity.y), 10, 35, 20, DARKGRAY);
+			DrawText(TextFormat("SPEED: %.1f", player.speed), 10, 60, 20, DARKGRAY);
+            
+        EndDrawing();
+    }
 
-	}
-
-	CloseWindow();
-	return 0;
+    CloseWindow();
+    return 0;
 }
