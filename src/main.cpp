@@ -43,8 +43,9 @@ int main(){
             }
         }
     }
-    
+
     Mesh chunkMesh = BuildChunkMesh(newchunk);
+    newchunk.meshDirty = true;
 
     int solidCount = 0;
     for(int x = 0; x < CHUNK_SIZE; x++)
@@ -95,6 +96,11 @@ int main(){
         
 
         camera.target = camera.position + forward;
+
+        if (newchunk.meshDirty) {
+            chunkMesh = BuildChunkMesh(newchunk);
+            newchunk.meshDirty = false;
+        }
         
         BeginDrawing();
         ClearBackground(RAYWHITE);

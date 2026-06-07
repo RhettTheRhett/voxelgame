@@ -58,13 +58,6 @@ Mesh BuildChunkMesh(const Chunk& chunk){
     int colorCursor = 0;
 
     // 4. fill loop
-    //    for each block
-    //      for each face
-    //        check neighbor
-    //        emit vertices
-    //        emit indices
-    //        emit colors
-    //        advance cursors
     for (int x = 0; x < CHUNK_SIZE; x++)
         for (int y = 0; y < CHUNK_SIZE; y++)
             for (int z = 0; z < CHUNK_SIZE; z++)
@@ -80,7 +73,7 @@ Mesh BuildChunkMesh(const Chunk& chunk){
                     if (IsSolid(chunk, nx, ny, nz)) continue;
 
                     // emit face f for block at (x, y, z)
-                    // step 1: write 4 vertices into mesh.vertices using vertCursor
+                    // write 4 vertices into mesh.vertices using vertCursor
                     int baseVertex = vertCursor / 3; // vertex index of this face's first vert
                     for (int v = 0; v < 4; v++)
                     {
@@ -88,7 +81,7 @@ Mesh BuildChunkMesh(const Chunk& chunk){
                         mesh.vertices[vertCursor++] = y + FACE_VERTS[f][v*3 + 1];
                         mesh.vertices[vertCursor++] = z + FACE_VERTS[f][v*3 + 2];
                     }
-                    // step 2: write 6 indices into mesh.indices using indexCursor
+                    //write 6 indices into mesh.indices using indexCursor
                     
                     mesh.indices[indexCursor++] = baseVertex + 0;
                     mesh.indices[indexCursor++] = baseVertex + 3;
@@ -96,12 +89,12 @@ Mesh BuildChunkMesh(const Chunk& chunk){
                     mesh.indices[indexCursor++] = baseVertex + 0;
                     mesh.indices[indexCursor++] = baseVertex + 2;
                     mesh.indices[indexCursor++] = baseVertex + 1;
-                    // step 3: write 4 colors into mesh.colors
+                    // write 4 colors into mesh.colors
                     for (int v = 0; v < 4; v++)
                     {
-                        mesh.colors[colorCursor++] = 255;
-                        mesh.colors[colorCursor++] = 255;
-                        mesh.colors[colorCursor++] = 255;
+                        mesh.colors[colorCursor++] = GetRandomValue(0,255);
+                        mesh.colors[colorCursor++] = GetRandomValue(0,255);
+                        mesh.colors[colorCursor++] = GetRandomValue(0,255);
                         mesh.colors[colorCursor++] = 255;
                     }
                     
