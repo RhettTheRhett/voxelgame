@@ -1,5 +1,7 @@
 #include "raylib.h"
 #include "raymath.h"
+#include "chunk.h"
+
 
 
 int main(){
@@ -22,6 +24,34 @@ int main(){
     camera.target = {0, 0, 0};
     camera.up = {0,1,0};
     camera.projection = CAMERA_PERSPECTIVE;
+
+    Chunk newchunk = {};
+
+    //loop through chunks
+    //x
+    for(int x = 0; x < CHUNK_SIZE; x++){
+        //y
+        for(int y = 0; y < CHUNK_SIZE; y++){
+            //z
+            for(int z = 0; z < CHUNK_SIZE; z++){
+                if(y < 3){
+                    newchunk.blocks[x][y][z] = 1; 
+                    
+                }else{
+                    newchunk.blocks[x][y][z] = 0;
+                }
+            }
+        }
+    }
+
+    int solidCount = 0;
+    for(int x = 0; x < CHUNK_SIZE; x++)
+        for(int y = 0; y < CHUNK_SIZE; y++)
+            for(int z = 0; z < CHUNK_SIZE; z++)
+                if(newchunk.blocks[x][y][z] == 1)
+                    solidCount++;
+
+    
 
     DisableCursor();
 
@@ -63,18 +93,19 @@ int main(){
 
         camera.target = camera.position + forward;
         
-        
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
         BeginMode3D(camera);
             DrawGrid(20, 1.0f);
             DrawCube({0,0.5f,0}, 1, 1, 1, BLUE);
+            DrawChunk(newchunk);
         EndMode3D();
 
         DrawText(TextFormat("dx: %.2f  dy: %.2f", delta.x, delta.y), 10, 10, 20, BLACK);
         DrawText(TextFormat("pitch: %.2f yaw: %.2f", pitch, yaw), 10, 35, 20, BLACK);
         DrawText(TextFormat("FPS: %d", GetFPS()), 10, 60, 20, BLACK);
+        DrawText(TextFormat("x: %.2f  y: %.2f Z: %.2f", camera.position.x, camera.position.x, camera.position.y), 10, 85, 20, BLACK);
 
         EndDrawing();
     }
