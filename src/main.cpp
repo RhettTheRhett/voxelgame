@@ -15,8 +15,7 @@ int main(){
     float speed = 5.0f;
     float sensitivity = 0.1f;
 
-   
-
+    Material mat = LoadMaterialDefault();
 
     Camera3D camera = {};
     camera.fovy = 60.0f;
@@ -26,6 +25,7 @@ int main(){
     camera.projection = CAMERA_PERSPECTIVE;
 
     Chunk newchunk = {};
+    
 
     //loop through chunks
     //x
@@ -43,6 +43,8 @@ int main(){
             }
         }
     }
+    
+    Mesh chunkMesh = BuildChunkMesh(newchunk);
 
     int solidCount = 0;
     for(int x = 0; x < CHUNK_SIZE; x++)
@@ -90,6 +92,7 @@ int main(){
 
         if(IsKeyDown(KEY_SPACE)) camera.position.y += speed * deltaTime;
         if(IsKeyDown(KEY_LEFT_CONTROL)) camera.position.y -= speed * deltaTime;
+        
 
         camera.target = camera.position + forward;
         
@@ -99,7 +102,7 @@ int main(){
         BeginMode3D(camera);
             DrawGrid(20, 1.0f);
             DrawCube({0,0.5f,0}, 1, 1, 1, BLUE);
-            DrawChunk(newchunk);
+            DrawMesh(chunkMesh, mat, MatrixIdentity());
         EndMode3D();
 
         DrawText(TextFormat("dx: %.2f  dy: %.2f", delta.x, delta.y), 10, 10, 20, BLACK);
