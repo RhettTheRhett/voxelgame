@@ -1,5 +1,6 @@
 #include "chunk.h"
 #include "raylib.h"
+#include "noise.h"
 
 bool IsSolid(const Chunk& chunk, int x, int y, int z)
 {
@@ -13,7 +14,7 @@ bool IsSolid(const Chunk& chunk, int x, int y, int z)
 Mesh BuildChunkMesh(const Chunk& chunk){
 
     // 1. constants and tables (FACE_VERTS, FACE_DIRS)
-    const int MAX_FACES = 12288;
+    const int MAX_FACES = (CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE / 2) * 6;
 
     Mesh mesh = {0};
 
@@ -45,25 +46,19 @@ Mesh BuildChunkMesh(const Chunk& chunk){
     };
 
     // 2. allocate mesh
-
     mesh.vertices = (float*)MemAlloc(mesh.vertexCount * 3 * sizeof(float));
     mesh.indices = (unsigned short*)MemAlloc(mesh.triangleCount * 3 * sizeof(unsigned short));;
     mesh.colors = (unsigned char*)MemAlloc(mesh.vertexCount * 4 * sizeof(unsigned char));
-
-
     // 3. cursors
-
     int vertCursor  = 0;
     int indexCursor = 0;
     int colorCursor = 0;
-
     // 4. fill loop
     for (int x = 0; x < CHUNK_SIZE; x++)
         for (int y = 0; y < CHUNK_SIZE; y++)
             for (int z = 0; z < CHUNK_SIZE; z++)
             {
                 if (chunk.blocks[x][y][z] == 0) continue;
-
                 for (int f = 0; f < 6; f++)
                 {
                     int nx = x + FACE_DIRS[f][0];
@@ -71,7 +66,6 @@ Mesh BuildChunkMesh(const Chunk& chunk){
                     int nz = z + FACE_DIRS[f][2];
 
                     if (IsSolid(chunk, nx, ny, nz)) continue;
-
                     // emit face f for block at (x, y, z)
                     // write 4 vertices into mesh.vertices using vertCursor
                     int baseVertex = vertCursor / 3; // vertex index of this face's first vert
@@ -82,7 +76,6 @@ Mesh BuildChunkMesh(const Chunk& chunk){
                         mesh.vertices[vertCursor++] = z + FACE_VERTS[f][v*3 + 2];
                     }
                     //write 6 indices into mesh.indices using indexCursor
-                    
                     mesh.indices[indexCursor++] = baseVertex + 0;
                     mesh.indices[indexCursor++] = baseVertex + 3;
                     mesh.indices[indexCursor++] = baseVertex + 2;
@@ -97,14 +90,11 @@ Mesh BuildChunkMesh(const Chunk& chunk){
                         mesh.colors[colorCursor++] = GetRandomValue(0,255);
                         mesh.colors[colorCursor++] = 255;
                     }
-                    
                 }
             }
-
     // 5. update final counts
     mesh.vertexCount  = vertCursor / 3;
     mesh.triangleCount = indexCursor / 3;
-
     // 6. upload and return
     UploadMesh(&mesh, false);
     return mesh;
@@ -134,3 +124,20 @@ void DrawChunk(const Chunk& chunk){
                 }
 }
 
+void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octaves, float persistence) {
+    for (int x = 0; x < CHUNK_SIZE; x++) {
+        for (int z = 0; z < CHUNK_SIZE; z++) {
+            float wx = (chunkX * CHUNK_SIZE + x) * scale ;
+            float wz = (chunkZ * CHUNK_SIZE + z) * scale ;
+
+            float n = FBm2D(wx, wz, octaves, persistence);
+            float t = (n + 1.0f) / 2.0f;
+            int height = 2 + (int)(t * (CHUNK_SIZE - 2));
+
+            for (int y = 0; y < CHUNK_SIZE; y++) {
+                chunk.blocks[x][y][z] = (y < height) ? 1 : 0;
+            }
+        }
+    }
+    chunk.meshDirty = true;
+}
