@@ -78,17 +78,17 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                     int worldZ = chunkZ * CHUNK_SIZE + z + FACE_DIRS[f][2];
 
                     // fast path — local block, just array indexing
-                    if (nx >= 0 && nx < CHUNK_SIZE && 
-                        ny >= 0 && ny < CHUNK_HEIGHT && 
-                        nz >= 0 && nz < CHUNK_SIZE) {
-                        if (chunk.blocks[nx][ny][nz] != 0) continue;
-                    }
-                    // slow path — border block, hash map lookup
-                    else {
-                        int worldX = chunkX * CHUNK_SIZE + nx;
-                        int worldZ = chunkZ * CHUNK_SIZE + nz;
-                        if (IsSolid(world, worldX, ny, worldZ)) continue;
-                    }
+                        if (nx >= 0 && nx < CHUNK_SIZE && 
+                            ny >= 0 && ny < CHUNK_HEIGHT && 
+                            nz >= 0 && nz < CHUNK_SIZE) {
+                            if (chunk.blocks[nx][ny][nz] != 0) continue;
+                        }
+                        // slow path — border block, hash map lookup
+                        else {
+                            int worldX = chunkX * CHUNK_SIZE + nx;
+                            int worldZ = chunkZ * CHUNK_SIZE + nz;
+                            if (IsSolid(world, worldX, ny, worldZ)) continue;
+                        }
                     // emit face f for block at (x, y, z)
                     // write 4 vertices into mesh.vertices using vertCursor
                     int baseVertex = vertCursor / 3; // vertex index of this face's first vert
@@ -176,3 +176,4 @@ void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octave
     }
     chunk.meshDirty = true;
 }
+
