@@ -6,7 +6,7 @@ bool IsSolid(const Chunk& chunk, int x, int y, int z)
 {
     // if out of bounds, treat as air
     if(x < 0 || x >= CHUNK_SIZE) return false;
-    if(y < 0 || y >= CHUNK_SIZE) return false;
+    if(y < 0 || y >= CHUNK_HEIGHT) return false;
     if(z < 0 || z >= CHUNK_SIZE) return false;
     return chunk.blocks[x][y][z] != 0;
 }
@@ -14,7 +14,8 @@ bool IsSolid(const Chunk& chunk, int x, int y, int z)
 Mesh BuildChunkMesh(const Chunk& chunk){
 
     // 1. constants and tables (FACE_VERTS, FACE_DIRS)
-    const int MAX_FACES = (CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE / 2) * 6;
+    const int MAX_FACES = (CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE / 2) * 6;
+    //const int MAX_FACES = 16383;
 
     Mesh mesh = {0};
 
@@ -55,7 +56,7 @@ Mesh BuildChunkMesh(const Chunk& chunk){
     int colorCursor = 0;
     // 4. fill loop
     for (int x = 0; x < CHUNK_SIZE; x++)
-        for (int y = 0; y < CHUNK_SIZE; y++)
+        for (int y = 0; y < CHUNK_HEIGHT; y++)
             for (int z = 0; z < CHUNK_SIZE; z++)
             {
                 if (chunk.blocks[x][y][z] == 0) continue;
@@ -83,12 +84,22 @@ Mesh BuildChunkMesh(const Chunk& chunk){
                     mesh.indices[indexCursor++] = baseVertex + 2;
                     mesh.indices[indexCursor++] = baseVertex + 1;
                     // write 4 colors into mesh.colors
+                    unsigned char shade;
+                    switch(f) {
+                        case 0: shade = 255; break; // +Y top     - brightest
+                        case 1: shade = 60;  break; // -Y bottom  - darkest
+                        case 2: shade = 180; break; // +X 
+                        case 3: shade = 180; break; // -X
+                        case 4: shade = 220; break; // +Z
+                        case 5: shade = 220; break; // -Z
+                    }
+
                     for (int v = 0; v < 4; v++)
                     {
-                        mesh.colors[colorCursor++] = GetRandomValue(0,255);
-                        mesh.colors[colorCursor++] = GetRandomValue(0,255);
-                        mesh.colors[colorCursor++] = GetRandomValue(0,255);
-                        mesh.colors[colorCursor++] = 255;
+                        mesh.colors[colorCursor++] = (unsigned char)(86  * shade / 255);  // R
+                        mesh.colors[colorCursor++] = (unsigned char)(125 * shade / 255);  // G
+                        mesh.colors[colorCursor++] = (unsigned char)(70  * shade / 255);  // B
+                        mesh.colors[colorCursor++] = 255;                                  // A
                     }
                 }
             }
@@ -102,7 +113,7 @@ Mesh BuildChunkMesh(const Chunk& chunk){
 
 void DrawChunk(const Chunk& chunk){
     for(int x = 0; x < CHUNK_SIZE; x++)
-        for(int y = 0; y < CHUNK_SIZE; y++)
+        for(int y = 0; y < CHUNK_HEIGHT; y++)
             for(int z = 0; z < CHUNK_SIZE; z++)
                 if(chunk.blocks[x][y][z] == 1){
                     Vector3 worldPos = {
@@ -132,9 +143,11 @@ void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octave
 
             float n = FBm2D(wx, wz, octaves, persistence);
             float t = (n + 1.0f) / 2.0f;
-            int height = 2 + (int)(t * (CHUNK_SIZE - 2));
+            int seaLevel  = CHUNK_HEIGHT / 4;      // 16
+            int maxHeight = CHUNK_HEIGHT * 3 / 4;  // 48
+            int height = seaLevel + (int)(t * (maxHeight - seaLevel));
 
-            for (int y = 0; y < CHUNK_SIZE; y++) {
+            for (int y = 0; y < CHUNK_HEIGHT; y++) {
                 chunk.blocks[x][y][z] = (y < height) ? 1 : 0;
             }
         }

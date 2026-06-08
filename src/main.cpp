@@ -2,6 +2,7 @@
 #include "raymath.h"
 #include "chunk.h"
 #include "noise.h"
+#include "world.h"
 #include <cmath>
 
 
@@ -13,7 +14,7 @@ int main(){
 
     float yaw   = -90.0f; // start facing -Z (into the scene)
     float pitch = 0.0f;
-    float speed = 5.0f;
+    float speed = 15.0f;
     float sensitivity = 0.1f;
 
     Material mat = LoadMaterialDefault();
@@ -25,27 +26,25 @@ int main(){
     camera.up = {0,1,0};
     camera.projection = CAMERA_PERSPECTIVE;
 
-    Chunk newchunk = {};
-    //GenerateChunk(newchunk, 0, 0);
-    Mesh chunkMesh = BuildChunkMesh(newchunk);
-    newchunk.meshDirty = false;
+    World world = {};
+    world.seed             = 0;
+    world.noiseScale       = 0.0044f;
+    world.noiseOctaves     = 4;
+    world.noisePersistence = 0.55f;
+
+    SetNoiseSeed(world.seed);
+    GenerateWorld(world, 3, 0, 0);
 
     bool showNoiseDebug = false;
 
-
     DisableCursor();
-
-    float noiseScale    = 0.05f;
-    int   noiseOctaves  = 4;
-    float noisePersist  = 0.5f;
-    bool  showNoise     = false;
 
     // helper lambda to regenerate and rebuild
     auto regen = [&]() {
-    GenerateChunk(newchunk, 0, 0, noiseScale, noiseOctaves, noisePersist);
-    UnloadMesh(chunkMesh);
-    chunkMesh = BuildChunkMesh(newchunk);
-};
+    SetNoiseSeed(world.seed);
+    world.chunks.clear();
+    GenerateWorld(world, 3, 0, 0);
+    };
 
     while(!WindowShouldClose()){
 
@@ -84,23 +83,23 @@ int main(){
         if(IsKeyDown(KEY_LEFT_CONTROL)) camera.position.y -= speed * deltaTime;
         
         // Scale
-        if (IsKeyPressed(KEY_UP))   { noiseScale *= 1.5f; regen(); }
-        if (IsKeyPressed(KEY_DOWN)) { noiseScale /= 1.5f; regen(); }
+        if (IsKeyPressed(KEY_UP))   { world.noiseScale *= 1.5f; regen(); }
+        if (IsKeyPressed(KEY_DOWN)) { world.noiseScale /= 1.5f; regen(); }
 
         // Octaves
-        if (IsKeyPressed(KEY_RIGHT)) { noiseOctaves = __min(noiseOctaves+1, 8); regen(); }
-        if (IsKeyPressed(KEY_LEFT))  { noiseOctaves = __max(noiseOctaves-1, 1); regen(); }
+        if (IsKeyPressed(KEY_RIGHT)) { world.noiseOctaves = __min(world.noiseOctaves+1, 8); regen(); }
+        if (IsKeyPressed(KEY_LEFT))  { world.noiseOctaves = __max(world.noiseOctaves-1, 1); regen(); }
 
         // Persistence
-        if (IsKeyPressed(KEY_E)) { noisePersist = __min(noisePersist+0.05f, 0.95f); regen(); }
-        if (IsKeyPressed(KEY_Q)) { noisePersist = __max(noisePersist-0.05f, 0.05f); regen(); }
+        if (IsKeyPressed(KEY_E)) { world.noisePersistence = __min(world.noisePersistence+0.05f, 0.95f); regen(); }
+        if (IsKeyPressed(KEY_Q)) { world.noisePersistence = __max(world.noisePersistence-0.05f, 0.05f); regen(); }
+
+        // Seed
+        if (IsKeyPressed(KEY_N)) { world.seed++; regen(); }
+        if (IsKeyPressed(KEY_B)) { world.seed--; regen(); }
 
         camera.target = camera.position + forward;
 
-        if (newchunk.meshDirty) {
-            chunkMesh = BuildChunkMesh(newchunk);
-            newchunk.meshDirty = false;
-        }
         
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -108,7 +107,7 @@ int main(){
         BeginMode3D(camera);
             DrawGrid(20, 1.0f);
             DrawCube({0,0.5f,0}, 1, 1, 1, BLUE);
-            DrawMesh(chunkMesh, mat, MatrixIdentity());
+            DrawWorld(world, mat);
         EndMode3D();
 
         // in main.cpp, after EndMode3D() and before EndDrawing()
@@ -118,9 +117,9 @@ int main(){
             int previewSize = 256;
             for (int px = 0; px < previewSize; px++) {
                 for (int py = 0; py < previewSize; py++) {
-                    float wx = px * 0.05f;
-                    float wy = py * 0.05f;
-                    float n = FBm2D(wx, wy, 4, 0.5f);
+                    float wx = px * world.noiseScale;
+                    float wy = py * world.noiseScale;
+                    float n = FBm2D(wx, wy, world.noiseOctaves, world.noisePersistence);
                     float t = (n + 1.0f) / 2.0f;
                     unsigned char c = (unsigned char)(t * 255);
                     DrawPixel(px, py, {c, c, c, 255});
@@ -133,9 +132,10 @@ int main(){
         DrawText(TextFormat("FPS: %d", GetFPS()), 10, 60, 20, BLACK);
         DrawText(TextFormat("x: %.2f  y: %.2f Z: %.2f", camera.position.x, camera.position.y, camera.position.z), 10, 85, 20, BLACK);
 
-        DrawText(TextFormat("Scale: %.4f  [UP/DOWN]",    noiseScale),   10, 110, 20, DARKGREEN);
-        DrawText(TextFormat("Octaves: %d  [LEFT/RIGHT]", noiseOctaves), 10, 135, 20, DARKGREEN);
-        DrawText(TextFormat("Persist: %.2f  [Q/E]",      noisePersist), 10, 160, 20, DARKGREEN);
+        DrawText(TextFormat("Scale: %.4f  [UP/DOWN]",    world.noiseScale),   10, 110, 20, DARKGREEN);
+        DrawText(TextFormat("Octaves: %d  [LEFT/RIGHT]", world.noiseOctaves), 10, 135, 20, DARKGREEN);
+        DrawText(TextFormat("Persist: %.2f  [Q/E]",      world.noisePersistence), 10, 160, 20, DARKGREEN);
+        DrawText(TextFormat("Seed: %d  [B/N]", world.seed), 10, 185, 20, DARKGREEN);
 
         EndDrawing();
     }

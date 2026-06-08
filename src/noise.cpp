@@ -13,6 +13,16 @@ static float smoothstep(float t) {
     return t * t * (3.0f - 2.0f * t);
 }
 
+static float g_offsetX = 0.0f;
+static float g_offsetZ = 0.0f;
+
+void SetNoiseSeed(int seed) {
+    // use the hash to derive offsets from the seed
+    // multiply by a large number so small seeds still jump far
+    g_offsetX = hash2D(seed, 0) * 10000.0f;
+    g_offsetZ = hash2D(0, seed) * 10000.0f;
+}
+
 // Interpolate between a and b using factor t (0..1)
 static float lerp(float a, float b, float t) {
     return a + (b-a) * t;
@@ -53,7 +63,7 @@ float FBm2D(float x, float y, int octaves, float persistence) {
 
     for (int i = 0; i < octaves; i++) {
         // sample noise at current frequency, scale by amplitude
-        value += ValueNoise2D(x * frequency, y * frequency) * amplitude;
+        value += ValueNoise2D((x + g_offsetX) * frequency, (y + g_offsetZ) * frequency);
         // accumulate amplitude into maxValue
         maxValue += amplitude;
         // double frequency, multiply amplitude by persistence
@@ -63,3 +73,4 @@ float FBm2D(float x, float y, int octaves, float persistence) {
 
     return value / maxValue; // normalize to [-1, 1]
 }
+

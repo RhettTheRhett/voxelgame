@@ -3,10 +3,11 @@
 #include <cstdint>
 #include "raylib.h"
 
-const int CHUNK_SIZE = 32;
+const int CHUNK_SIZE = 16;
+const int CHUNK_HEIGHT = 128;
 struct Chunk {
     
-    uint16_t blocks[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
+    uint16_t blocks[CHUNK_SIZE][CHUNK_HEIGHT][CHUNK_SIZE];
     Vector3 position;
     Mesh mesh;
     bool meshDirty;

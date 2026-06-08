@@ -6,3 +6,5 @@ float ValueNoise2D(float x, float y);
 
 // Layered octave noise (fBm). octaves=4, persistence=0.5 is a good start.
 float FBm2D(float x, float y, int octaves, float persistence);
+
+void SetNoiseSeed(int seed);
