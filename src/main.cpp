@@ -27,13 +27,13 @@ int main(){
     camera.projection = CAMERA_PERSPECTIVE;
 
     World world = {};
-    world.seed             = 0;
+    world.seed             = GetRandomValue(0,999999999);
     world.noiseScale       = 0.0044f;
     world.noiseOctaves     = 4;
     world.noisePersistence = 0.55f;
 
     SetNoiseSeed(world.seed);
-    GenerateWorld(world, 3, 0, 0);
+    //GenerateWorld(world, 3, 0, 0);
 
     bool showNoiseDebug = false;
 
@@ -99,6 +99,10 @@ int main(){
         if (IsKeyPressed(KEY_B)) { world.seed--; regen(); }
 
         camera.target = camera.position + forward;
+
+        int playerChunkX = (int)floor(camera.position.x / CHUNK_SIZE);
+        int playerChunkZ = (int)floor(camera.position.z / CHUNK_SIZE);
+        GenerateWorld(world, 12, playerChunkX, playerChunkZ);
 
         
         BeginDrawing();
