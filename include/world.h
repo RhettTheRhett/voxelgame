@@ -26,3 +26,4 @@ struct World {
 // forward declarations
 void GenerateWorld(World& world, int renderDistance, int playerChunkX, int playerChunkZ);
 void DrawWorld(World& world, Material& mat);
+void UnloadDistantChunks(World& world, int playerChunkX, int playerChunkZ, int renderDistance);

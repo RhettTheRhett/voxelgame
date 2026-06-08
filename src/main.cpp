@@ -17,6 +17,8 @@ int main(){
     float speed = 15.0f;
     float sensitivity = 0.1f;
 
+    float renderDistance = 12;
+
     Material mat = LoadMaterialDefault();
 
     Camera3D camera = {};
@@ -45,6 +47,10 @@ int main(){
     world.chunks.clear();
     GenerateWorld(world, 3, 0, 0);
     };
+
+    // track last known player chunk
+        int lastPlayerChunkX = INT_MIN;
+        int lastPlayerChunkZ = INT_MIN;
 
     while(!WindowShouldClose()){
 
@@ -102,7 +108,17 @@ int main(){
 
         int playerChunkX = (int)floor(camera.position.x / CHUNK_SIZE);
         int playerChunkZ = (int)floor(camera.position.z / CHUNK_SIZE);
-        GenerateWorld(world, 12, playerChunkX, playerChunkZ);
+
+
+        
+
+        
+        if (playerChunkX != lastPlayerChunkX || playerChunkZ != lastPlayerChunkZ) {
+            UnloadDistantChunks(world, playerChunkX, playerChunkZ, renderDistance);
+            GenerateWorld(world, renderDistance, playerChunkX, playerChunkZ);
+            lastPlayerChunkX = playerChunkX;
+            lastPlayerChunkZ = playerChunkZ;
+}
 
         
         BeginDrawing();
@@ -114,7 +130,7 @@ int main(){
             DrawWorld(world, mat);
         EndMode3D();
 
-        // in main.cpp, after EndMode3D() and before EndDrawing()
+        
         if (IsKeyPressed(KEY_TAB)) showNoiseDebug = !showNoiseDebug;
 
         if (showNoiseDebug) {

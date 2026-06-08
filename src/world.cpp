@@ -22,18 +22,41 @@ void GenerateWorld(World& world, int renderDistance, int playerChunkX, int playe
 }
 
 void DrawWorld(World& world, Material& mat){
+    // pass 1 — build all dirty meshes first
     for (auto& [coord, chunk] : world.chunks) {
         if (chunk.meshDirty) {
-            UnloadMesh(chunk.mesh);
-            chunk.mesh = BuildChunkMesh(chunk);
+            if (chunk.meshDirty) {
+                TraceLog(LOG_INFO, "Building mesh for chunk %d, %d", coord.x, coord.z);
+
+            }
+            if (chunk.mesh.vaoId != 0) UnloadMesh(chunk.mesh);
+            chunk.mesh = BuildChunkMesh(chunk, world, coord.x, coord.z);
             chunk.meshDirty = false;
         }
+    }
 
+    // pass 2 — draw everything
+    for (auto& [coord, chunk] : world.chunks) {
         Matrix transform = MatrixTranslate(
             chunk.position.x,
             chunk.position.y,
             chunk.position.z
         );
         DrawMesh(chunk.mesh, mat, transform);
+    }
+}
+
+void UnloadDistantChunks(World& world, int playerChunkX, int playerChunkZ, int renderDistance){
+    // collect keys to erase first
+    std::vector<ChunkCoord> toErase;
+    for (auto& [coord, chunk] : world.chunks) {
+        //int cx = (int)(chunk.position.x / CHUNK_SIZE);
+        //int cz = (int)(chunk.position.z / CHUNK_SIZE);
+       if ((abs(coord.x - playerChunkX) > renderDistance || abs(coord.z - playerChunkZ) > renderDistance) ) toErase.push_back(coord);
+    }
+    // then erase them
+    for (auto& coord : toErase) {
+        UnloadMesh(world.chunks[coord].mesh);
+        world.chunks.erase(coord);
     }
 }

@@ -1,17 +1,24 @@
 #include "chunk.h"
 #include "raylib.h"
 #include "noise.h"
+#include "world.h"
 
-bool IsSolid(const Chunk& chunk, int x, int y, int z)
+bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
 {
-    // if out of bounds, treat as air
-    if(x < 0 || x >= CHUNK_SIZE) return false;
-    if(y < 0 || y >= CHUNK_HEIGHT) return false;
-    if(z < 0 || z >= CHUNK_SIZE) return false;
-    return chunk.blocks[x][y][z] != 0;
+    int chunkX = (int)floor(worldBlockX / (float)CHUNK_SIZE);
+    int chunkZ = (int)floor(worldBlockZ / (float)CHUNK_SIZE);
+    int localX = worldBlockX - chunkX * CHUNK_SIZE;
+    int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
+
+    ChunkCoord coord = { chunkX, chunkZ };
+    if (world.chunks.count(coord) == 0) return false; // chunk not loaded
+    if (worldBlockY < 0 || worldBlockY >= CHUNK_HEIGHT) return false;
+    const Chunk& chunk = world.chunks.at(coord);
+
+    return chunk.blocks[localX][worldBlockY][localZ] != 0; 
 }
 
-Mesh BuildChunkMesh(const Chunk& chunk){
+Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chunkZ){
 
     // 1. constants and tables (FACE_VERTS, FACE_DIRS)
     const int MAX_FACES = (CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE / 2) * 6;
@@ -66,7 +73,22 @@ Mesh BuildChunkMesh(const Chunk& chunk){
                     int ny = y + FACE_DIRS[f][1];
                     int nz = z + FACE_DIRS[f][2];
 
-                    if (IsSolid(chunk, nx, ny, nz)) continue;
+                    int worldX = chunkX * CHUNK_SIZE + x + FACE_DIRS[f][0];
+                    int worldY = y + FACE_DIRS[f][1];
+                    int worldZ = chunkZ * CHUNK_SIZE + z + FACE_DIRS[f][2];
+
+                    // fast path — local block, just array indexing
+                    if (nx >= 0 && nx < CHUNK_SIZE && 
+                        ny >= 0 && ny < CHUNK_HEIGHT && 
+                        nz >= 0 && nz < CHUNK_SIZE) {
+                        if (chunk.blocks[nx][ny][nz] != 0) continue;
+                    }
+                    // slow path — border block, hash map lookup
+                    else {
+                        int worldX = chunkX * CHUNK_SIZE + nx;
+                        int worldZ = chunkZ * CHUNK_SIZE + nz;
+                        if (IsSolid(world, worldX, ny, worldZ)) continue;
+                    }
                     // emit face f for block at (x, y, z)
                     // write 4 vertices into mesh.vertices using vertCursor
                     int baseVertex = vertCursor / 3; // vertex index of this face's first vert
@@ -110,7 +132,7 @@ Mesh BuildChunkMesh(const Chunk& chunk){
     UploadMesh(&mesh, false);
     return mesh;
 }
-
+/*
 void DrawChunk(const Chunk& chunk){
     for(int x = 0; x < CHUNK_SIZE; x++)
         for(int y = 0; y < CHUNK_HEIGHT; y++)
@@ -133,7 +155,7 @@ void DrawChunk(const Chunk& chunk){
                         DrawCubeWires(worldPos, 1.0f, 1.0f, 1.0f, BLACK);
                     }
                 }
-}
+}*/
 
 void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octaves, float persistence) {
     for (int x = 0; x < CHUNK_SIZE; x++) {

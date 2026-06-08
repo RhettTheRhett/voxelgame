@@ -3,8 +3,10 @@
 #include <cstdint>
 #include "raylib.h"
 
+struct World;
+
 const int CHUNK_SIZE = 16;
-const int CHUNK_HEIGHT = 128;
+const int CHUNK_HEIGHT = 64;
 struct Chunk {
     
     uint16_t blocks[CHUNK_SIZE][CHUNK_HEIGHT][CHUNK_SIZE];
@@ -14,6 +16,6 @@ struct Chunk {
 };
 
 void DrawChunk(const Chunk& chunk);
-bool IsSolid(const Chunk& chunk, int x, int y, int z);
-Mesh BuildChunkMesh(const Chunk& chunk);
+bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ);
+Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chunkZ);
 void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octaves, float persistence);
