@@ -147,6 +147,6 @@ float FBm3D(float x,float y, float z, int octaves, float persistence)
         amplitude *= persistence;
     }
 
-    return value / maxValue;
+    return (value / maxValue + 1.0f) * 0.5f;  // remap [-1,1] to [0,1]
 }
 

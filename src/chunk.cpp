@@ -156,7 +156,7 @@ void DrawChunk(const Chunk& chunk){
                     }
                 }
 }*/
-
+/*
 void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octaves, float persistence) {
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int z = 0; z < CHUNK_SIZE; z++) {
@@ -175,5 +175,64 @@ void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octave
         }
     }
     chunk.meshDirty = true;
-}
+} */
 
+void GenerateChunk(Chunk& chunk,
+                   int chunkX,
+                   int chunkZ,
+                   float scale,
+                   int octaves,
+                   float persistence)
+{
+    for (int x = 0; x < CHUNK_SIZE; x++)
+    {
+        for (int z = 0; z < CHUNK_SIZE; z++)
+        {
+            float wx = (chunkX * CHUNK_SIZE + x) * scale;
+            float wz = (chunkZ * CHUNK_SIZE + z) * scale;
+
+            // HEIGHTMAP (fast, 2D only)
+            float n = FBm2D(wx, wz, octaves, persistence);
+            float t = (n + 1.0f) * 0.5f;
+
+            int seaLevel  = CHUNK_HEIGHT / 4;
+            int maxHeight = CHUNK_HEIGHT * 3 / 4;
+
+            int height = seaLevel +
+                (int)(t * (maxHeight - seaLevel));
+
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+            {
+                if (y > height)
+                {
+                    chunk.blocks[x][y][z] = 0;
+                    continue;
+                }
+
+                
+                float rawX = chunkX * CHUNK_SIZE + x;
+                float rawZ = chunkZ * CHUNK_SIZE + z;
+                // heightmap uses rawX * scale as before
+                float cave1 = FBm3D(
+                    rawX * CAVE_CHAMBER_SCALE,y * CAVE_CHAMBER_SCALE,rawZ * CAVE_CHAMBER_SCALE,
+                    CAVE_CHAMBER_OCTAVES, CAVE_CHAMBER_PERSISTENCE);
+
+                float cave2 = FBm3D(
+                    rawX * CAVE_TUNNEL_SCALE, y * CAVE_TUNNEL_SCALE, rawZ * CAVE_TUNNEL_SCALE, 
+                    CAVE_TUNNEL_OCTAVES, CAVE_TUNNEL_PERSISTENCE);
+
+                float cave = fmaxf(cave1, cave2);
+
+                int   depth     = height - y;
+                float depthFade = fminf((float)depth / CAVE_SURFACE_FADE_DEPTH, 1.0f);
+
+                if (cave * depthFade > CAVE_THRESHOLD)
+                    chunk.blocks[x][y][z] = 0;
+                else
+                    chunk.blocks[x][y][z] = 1;
+            }
+        }
+    }
+
+    chunk.meshDirty = true;
+}
