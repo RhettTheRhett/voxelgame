@@ -10,20 +10,20 @@ int main(){
 
 
     InitWindow(1080, 720, "Voxel Game");
-    SetTargetFPS(200);
+    SetTargetFPS(30);
 
     float yaw   = -90.0f; // start facing -Z (into the scene)
     float pitch = 0.0f;
     float speed = 15.0f;
     float sensitivity = 0.1f;
 
-    float renderDistance = 12;
+    float renderDistance = 6;
 
     Material mat = LoadMaterialDefault();
 
     Camera3D camera = {};
-    camera.fovy = 60.0f;
-    camera.position = {0, 5, 10};
+    camera.fovy = 70.0f;
+    camera.position = {0, 64, 0};
     camera.target = {0, 0, 0};
     camera.up = {0,1,0};
     camera.projection = CAMERA_PERSPECTIVE;
@@ -125,8 +125,8 @@ int main(){
         ClearBackground(RAYWHITE);
 
         BeginMode3D(camera);
-            DrawGrid(20, 1.0f);
-            DrawCube({0,0.5f,0}, 1, 1, 1, BLUE);
+            //DrawGrid(20, 1.0f);
+            //DrawCube({0,0.5f,0}, 1, 1, 1, BLUE);
             DrawWorld(world, mat);
         EndMode3D();
 

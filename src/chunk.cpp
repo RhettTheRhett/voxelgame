@@ -15,7 +15,7 @@ bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBloc
     if (worldBlockY < 0 || worldBlockY >= CHUNK_HEIGHT) return false;
     const Chunk& chunk = world.chunks.at(coord);
 
-    return chunk.blocks[localX][worldBlockY][localZ] != 0; 
+    return chunk.blocks[localX][worldBlockY][localZ] != Block::AIR; 
 }
 
 Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chunkZ){
@@ -227,7 +227,7 @@ void GenerateChunk(Chunk& chunk,
                 float depthFade = fminf((float)depth / CAVE_SURFACE_FADE_DEPTH, 1.0f);
 
                 if (cave * depthFade > CAVE_THRESHOLD)
-                    chunk.blocks[x][y][z] = 0;
+                    chunk.blocks[x][y][z] = Block::AIR;
                 else
                     chunk.blocks[x][y][z] = 1;
             }

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include "raylib.h"
+#include "block.h"
 
 struct World;
 
@@ -13,9 +14,9 @@ static const float CAVE_CHAMBER_SCALE       = 0.008f;
 static const int   CAVE_CHAMBER_OCTAVES     = 3;
 static const float CAVE_CHAMBER_PERSISTENCE = 0.5f;
 
-static const float CAVE_TUNNEL_SCALE        = 0.025f;
-static const int   CAVE_TUNNEL_OCTAVES      = 2;
-static const float CAVE_TUNNEL_PERSISTENCE  = 0.5f;
+static const float CAVE_TUNNEL_SCALE        = 0.055f;
+static const int   CAVE_TUNNEL_OCTAVES      = 3;
+static const float CAVE_TUNNEL_PERSISTENCE  = 0.25f;
 
 static const float CAVE_THRESHOLD           = 0.75f;
 static const float CAVE_SURFACE_FADE_DEPTH  = 10.0f;
