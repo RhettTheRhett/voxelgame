@@ -49,6 +49,7 @@ void UpdatePlayer(Camera3D& camera, float& yaw, float& pitch, float speed, float
     if (IsKeyDown(KEY_D)) camera.position += moveSide    * speed * dt;
     if (IsKeyDown(KEY_SPACE))        camera.position.y += speed * dt;
     if (IsKeyDown(KEY_LEFT_CONTROL)) camera.position.y -= speed * dt;
+    
 
     camera.target = camera.position + forward;
 }
@@ -63,6 +64,8 @@ void UpdateWorldStreaming(World& world, int playerChunkX, int playerChunkZ, floa
 }
 
 void DrawHUD(const World& world, const Camera3D& camera, bool showNoiseDebug) {
+    int screenWidth = GetScreenWidth();
+    int screenHeight = GetScreenHeight();
     if (showNoiseDebug) {
         int previewSize = 256;
         for (int px = 0; px < previewSize; px++) {
@@ -83,8 +86,23 @@ void DrawHUD(const World& world, const Camera3D& camera, bool showNoiseDebug) {
     DrawText(TextFormat("Octaves: %d  [LEFT/RIGHT]",  world.noiseOctaves),     10, 85,  20, DARKGREEN);
     DrawText(TextFormat("Persist: %.2f  [Q/E]",       world.noisePersistence), 10, 110, 20, DARKGREEN);
     DrawText(TextFormat("Seed: %d  [B/N]",            world.seed),             10, 135, 20, DARKGREEN);
-    DrawLine(540, 350, 540, 370, WHITE);
-    DrawLine(530, 360, 550, 360, WHITE);
+    DrawLine(screenWidth/2, screenHeight/2 - 10, screenWidth/2, screenHeight/2 + 10, WHITE);
+    DrawLine(screenWidth/2 - 10, screenHeight/2, screenWidth/2 + 10, screenHeight/2, WHITE);
+}
+
+void DrawChunkBorders(int playerChunkX, int playerChunkZ, int radius) {
+    for (int cx = playerChunkX - radius; cx <= playerChunkX + radius; cx++) {
+        for (int cz = playerChunkZ - radius; cz <= playerChunkZ + radius; cz++) {
+            float x = cx * CHUNK_SIZE;
+            float z = cz * CHUNK_SIZE;
+
+            // Draw 4 vertical edges of the chunk column
+            DrawLine3D({x,             0, z},             {x,             CHUNK_HEIGHT, z},             GREEN);
+            DrawLine3D({x + CHUNK_SIZE, 0, z},             {x + CHUNK_SIZE, CHUNK_HEIGHT, z},             GREEN);
+            DrawLine3D({x,             0, z + CHUNK_SIZE}, {x,             CHUNK_HEIGHT, z + CHUNK_SIZE}, GREEN);
+            DrawLine3D({x + CHUNK_SIZE, 0, z + CHUNK_SIZE}, {x + CHUNK_SIZE, CHUNK_HEIGHT, z + CHUNK_SIZE}, GREEN);
+        }
+    }
 }
 
 int main() {
@@ -98,6 +116,7 @@ int main() {
     float sensitivity = 0.1f;
     float renderDistance = 12;
     bool showNoiseDebug = false;
+    bool showChunkBorders = false; 
 
     Material mat = LoadMaterialDefault();
 
@@ -132,6 +151,74 @@ int main() {
         Ray ray = GetMouseRay({screenWidth/2.0f, screenHeight/2.0f}, camera);
         RayHit hit = RayCast(ray, world, 8.0f);
 
+        if(hit.didHit){
+            int worldBlockX = (int)hit.position.x;
+            int worldBlockY = (int)hit.position.y;
+            int worldBlockZ = (int)hit.position.z;
+            int chunkX = (int)floor(worldBlockX / (float)CHUNK_SIZE);
+            int chunkZ = (int)floor(worldBlockZ / (float)CHUNK_SIZE);
+            int localX = worldBlockX - chunkX * CHUNK_SIZE;
+            int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
+
+            ChunkCoord coord = { chunkX, chunkZ };
+
+            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
+                world.chunks.at(coord).blocks[localX][worldBlockY][localZ] = Block::AIR;
+                world.chunks.at(coord).meshDirty = true;
+
+                if (localX == 0) {
+                    ChunkCoord n = {chunkX - 1, chunkZ};
+                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+                }
+                if (localX == CHUNK_SIZE - 1) {
+                    ChunkCoord n = {chunkX + 1, chunkZ};
+                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+                }
+                if (localZ == 0) {
+                    ChunkCoord n = {chunkX, chunkZ - 1};
+                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+                }
+                if (localZ == CHUNK_SIZE - 1) {
+                    ChunkCoord n = {chunkX, chunkZ + 1};
+                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+                }
+            } 
+            if(IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)){
+                int placeX = (int)hit.position.x + FACE_DIRS[hit.faceHit][0];
+                int placeY = (int)hit.position.y + FACE_DIRS[hit.faceHit][1];
+                int placeZ = (int)hit.position.z + FACE_DIRS[hit.faceHit][2];
+                
+                int placeChunkX = (int)floor(placeX / (float)CHUNK_SIZE);
+                int placeChunkZ = (int)floor(placeZ / (float)CHUNK_SIZE);
+                int placeLocalX = placeX - placeChunkX * CHUNK_SIZE;
+                int placeLocalZ = placeZ - placeChunkZ * CHUNK_SIZE;
+                ChunkCoord placeCoord = { placeChunkX, placeChunkZ };
+
+                world.chunks.at(placeCoord).blocks[placeLocalX][placeY][placeLocalZ] = Block::STONE;
+                world.chunks.at(placeCoord).meshDirty = true;
+
+
+                if (placeLocalX == 0) {
+                    ChunkCoord n = {placeChunkX - 1, placeChunkZ};
+                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+                }
+                if (placeLocalX == CHUNK_SIZE - 1) {
+                    ChunkCoord n = {placeChunkX + 1, placeChunkZ};
+                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+                }
+                if (placeLocalZ == 0) {
+                    ChunkCoord n = {placeChunkX, placeChunkZ - 1};
+                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+                }
+                if (placeLocalZ == CHUNK_SIZE - 1) {
+                    ChunkCoord n = {placeChunkX, placeChunkZ + 1};
+                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+                }
+
+            }
+        }
+        
+
         BeginDrawing();
             ClearBackground(RAYWHITE);
             BeginMode3D(camera);
@@ -143,8 +230,12 @@ int main() {
                         WHITE
                     );
                 }
+                if (showChunkBorders) {
+                    DrawChunkBorders(playerChunkX, playerChunkZ, 3);
+                }
             EndMode3D();
             if (IsKeyPressed(KEY_TAB)) showNoiseDebug = !showNoiseDebug;
+            if (IsKeyPressed(KEY_G)) showChunkBorders = ! showChunkBorders;
             DrawHUD(world, camera, showNoiseDebug);
         EndDrawing();
     }
