@@ -60,3 +60,33 @@ void UnloadDistantChunks(World& world, int playerChunkX, int playerChunkZ, int r
         world.chunks.erase(coord);
     }
 }
+
+void SetBlock(World& world, int worldX, int worldY, int worldZ, Block type){
+    
+    int chunkX = (int)floor(worldX / (float)CHUNK_SIZE);
+    int chunkZ = (int)floor(worldZ / (float)CHUNK_SIZE);
+    int localX = worldX - chunkX * CHUNK_SIZE;
+    int localZ = worldZ - chunkZ * CHUNK_SIZE;
+
+    ChunkCoord coord = { chunkX, chunkZ };
+
+    world.chunks.at(coord).blocks[localX][worldY][localZ] = type;
+    world.chunks.at(coord).meshDirty = true;
+
+    if (localX == 0) {
+        ChunkCoord n = {chunkX - 1, chunkZ};
+        if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+    }
+    if (localX == CHUNK_SIZE - 1) {
+        ChunkCoord n = {chunkX + 1, chunkZ};
+        if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+    }
+    if (localZ == 0) {
+        ChunkCoord n = {chunkX, chunkZ - 1};
+        if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+    }
+    if (localZ == CHUNK_SIZE - 1) {
+        ChunkCoord n = {chunkX, chunkZ + 1};
+        if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+    }
+}

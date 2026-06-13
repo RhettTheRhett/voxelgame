@@ -4,6 +4,7 @@
 #include "noise.h"
 #include "world.h"
 #include "raycast.h"
+#include "block.h"
 #include <cmath>
 
 void HandleNoiseInput(World& world) {
@@ -105,6 +106,7 @@ void DrawChunkBorders(int playerChunkX, int playerChunkZ, int radius) {
     }
 }
 
+
 int main() {
     InitWindow(1080, 720, "Voxel Game");
     int screenWidth = GetScreenWidth();
@@ -155,67 +157,16 @@ int main() {
             int worldBlockX = (int)hit.position.x;
             int worldBlockY = (int)hit.position.y;
             int worldBlockZ = (int)hit.position.z;
-            int chunkX = (int)floor(worldBlockX / (float)CHUNK_SIZE);
-            int chunkZ = (int)floor(worldBlockZ / (float)CHUNK_SIZE);
-            int localX = worldBlockX - chunkX * CHUNK_SIZE;
-            int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
 
-            ChunkCoord coord = { chunkX, chunkZ };
+            int placeX = (int)hit.position.x + FACE_DIRS[hit.faceHit][0];
+            int placeY = (int)hit.position.y + FACE_DIRS[hit.faceHit][1];
+            int placeZ = (int)hit.position.z + FACE_DIRS[hit.faceHit][2];
 
-            if(IsMouseButtonPressed(MOUSE_LEFT_BUTTON)){
-                world.chunks.at(coord).blocks[localX][worldBlockY][localZ] = Block::AIR;
-                world.chunks.at(coord).meshDirty = true;
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+                SetBlock(world, worldBlockX, worldBlockY, worldBlockZ, Block::AIR);
 
-                if (localX == 0) {
-                    ChunkCoord n = {chunkX - 1, chunkZ};
-                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
-                }
-                if (localX == CHUNK_SIZE - 1) {
-                    ChunkCoord n = {chunkX + 1, chunkZ};
-                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
-                }
-                if (localZ == 0) {
-                    ChunkCoord n = {chunkX, chunkZ - 1};
-                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
-                }
-                if (localZ == CHUNK_SIZE - 1) {
-                    ChunkCoord n = {chunkX, chunkZ + 1};
-                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
-                }
-            } 
-            if(IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)){
-                int placeX = (int)hit.position.x + FACE_DIRS[hit.faceHit][0];
-                int placeY = (int)hit.position.y + FACE_DIRS[hit.faceHit][1];
-                int placeZ = (int)hit.position.z + FACE_DIRS[hit.faceHit][2];
-                
-                int placeChunkX = (int)floor(placeX / (float)CHUNK_SIZE);
-                int placeChunkZ = (int)floor(placeZ / (float)CHUNK_SIZE);
-                int placeLocalX = placeX - placeChunkX * CHUNK_SIZE;
-                int placeLocalZ = placeZ - placeChunkZ * CHUNK_SIZE;
-                ChunkCoord placeCoord = { placeChunkX, placeChunkZ };
-
-                world.chunks.at(placeCoord).blocks[placeLocalX][placeY][placeLocalZ] = Block::STONE;
-                world.chunks.at(placeCoord).meshDirty = true;
-
-
-                if (placeLocalX == 0) {
-                    ChunkCoord n = {placeChunkX - 1, placeChunkZ};
-                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
-                }
-                if (placeLocalX == CHUNK_SIZE - 1) {
-                    ChunkCoord n = {placeChunkX + 1, placeChunkZ};
-                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
-                }
-                if (placeLocalZ == 0) {
-                    ChunkCoord n = {placeChunkX, placeChunkZ - 1};
-                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
-                }
-                if (placeLocalZ == CHUNK_SIZE - 1) {
-                    ChunkCoord n = {placeChunkX, placeChunkZ + 1};
-                    if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
-                }
-
-            }
+            if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
+                SetBlock(world, placeX, placeY, placeZ, Block::STONE);
         }
         
 
