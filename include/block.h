@@ -1,6 +1,30 @@
 #pragma once
 #include "raylib.h"
 
+ static const float FACE_VERTS[6][12] = {
+    // +Y top
+    { 1,1,1,  0,1,1,  0,1,0,  1,1,0 },
+    // -Y bottom
+    { 1,0,0,  0,0,0,  0,0,1,  1,0,1 },
+    // +X right
+    { 1,1,1,  1,1,0,  1,0,0,  1,0,1 },
+    // -X left
+    { 0,1,0,  0,1,1,  0,0,1,  0,0,0 },
+    // +Z front
+    { 0,1,1,  1,1,1,  1,0,1,  0,0,1 },
+    // -Z back
+    { 1,1,0,  0,1,0,  0,0,0,  1,0,0 },
+    };
+
+    static const int FACE_DIRS[6][3] = {
+    {  0,  1,  0 },  // +Y
+    {  0, -1,  0 },  // -Y
+    {  1,  0,  0 },  // +X
+    { -1,  0,  0 },  // -X
+    {  0,  0,  1 },  // +Z
+    {  0,  0, -1 },  // -Z
+    };
+
 enum Block{
         AIR, GRASS, DIRT, STONE
 };

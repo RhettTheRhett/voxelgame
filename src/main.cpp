@@ -10,14 +10,14 @@ int main(){
 
 
     InitWindow(1080, 720, "Voxel Game");
-    SetTargetFPS(30);
+    SetTargetFPS(75);
 
     float yaw   = -90.0f; // start facing -Z (into the scene)
     float pitch = 0.0f;
     float speed = 15.0f;
     float sensitivity = 0.1f;
 
-    float renderDistance = 6;
+    float renderDistance = 24;
 
     Material mat = LoadMaterialDefault();
 

@@ -26,7 +26,7 @@ void DrawWorld(World& world, Material& mat){
     for (auto& [coord, chunk] : world.chunks) {
         if (chunk.meshDirty) {
             if (chunk.meshDirty) {
-                TraceLog(LOG_INFO, "Building mesh for chunk %d, %d", coord.x, coord.z);
+                //TraceLog(LOG_INFO, "Building mesh for chunk %d, %d", coord.x, coord.z);
 
             }
             if (chunk.mesh.vaoId != 0) UnloadMesh(chunk.mesh);

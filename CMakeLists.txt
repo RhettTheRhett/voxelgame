@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_executable(voxelgame ${SOURCES})
 
+
+
 target_include_directories(voxelgame PRIVATE
     ${CMAKE_SOURCE_DIR}/include
 )
@@ -17,3 +19,4 @@ target_link_libraries(voxelgame PRIVATE
     gdi32
     winmm
 )
+
