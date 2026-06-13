@@ -18,8 +18,8 @@ static const float CAVE_TUNNEL_SCALE        = 0.055f;
 static const int   CAVE_TUNNEL_OCTAVES      = 3;
 static const float CAVE_TUNNEL_PERSISTENCE  = 0.25f;
 
-static const float CAVE_THRESHOLD           = 0.75f;
-static const float CAVE_SURFACE_FADE_DEPTH  = 10.0f;
+static const float CAVE_THRESHOLD           = 0.7f;
+static const float CAVE_SURFACE_FADE_DEPTH  = 4.0f;
 
 struct Chunk {
     

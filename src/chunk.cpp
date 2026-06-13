@@ -11,7 +11,7 @@ bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBloc
     int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
 
     ChunkCoord coord = { chunkX, chunkZ };
-    if (world.chunks.count(coord) == 0) return false; // chunk not loaded
+    if (world.chunks.count(coord) == 0) return true; // chunk not loaded
     if (worldBlockY < 0 || worldBlockY >= CHUNK_HEIGHT) return false;
     const Chunk& chunk = world.chunks.at(coord);
 
@@ -22,6 +22,7 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
 
     // 1. constants and tables (FACE_VERTS, FACE_DIRS)
     const int MAX_FACES = (CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE / 2) * 6;
+    
     //const int MAX_FACES = 16383;
 
     Mesh mesh = {0};
@@ -66,7 +67,8 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
         for (int y = 0; y < CHUNK_HEIGHT; y++)
             for (int z = 0; z < CHUNK_SIZE; z++)
             {
-                if (chunk.blocks[x][y][z] == 0) continue;
+                Block blockType = (Block)chunk.blocks[x][y][z];
+                if (blockType == Block::AIR) continue;
                 for (int f = 0; f < 6; f++)
                 {
                     int nx = x + FACE_DIRS[f][0];
@@ -81,7 +83,7 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                         if (nx >= 0 && nx < CHUNK_SIZE && 
                             ny >= 0 && ny < CHUNK_HEIGHT && 
                             nz >= 0 && nz < CHUNK_SIZE) {
-                            if (chunk.blocks[nx][ny][nz] != 0) continue;
+                            if (chunk.blocks[nx][ny][nz] != Block::AIR) continue;
                         }
                         // slow path — border block, hash map lookup
                         else {
@@ -107,22 +109,23 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                     mesh.indices[indexCursor++] = baseVertex + 1;
                     // write 4 colors into mesh.colors
                     unsigned char shade;
+                    Color faceIndexColor;
                     switch(f) {
-                        case 0: shade = 255; break; // +Y top     - brightest
-                        case 1: shade = 60;  break; // -Y bottom  - darkest
-                        case 2: shade = 180; break; // +X 
-                        case 3: shade = 180; break; // -X
-                        case 4: shade = 220; break; // +Z
-                        case 5: shade = 220; break; // -Z
+                        case 0: shade = 255; faceIndexColor = BLOCK_DEFINITIONS[blockType].TOP_COLOR ; break; // +Y top     - brightest
+                        case 1: shade = 60; faceIndexColor = BLOCK_DEFINITIONS[blockType].BOTTOM_COLOR ;  break; // -Y bottom  - darkest
+                        case 2: shade = 180; faceIndexColor = BLOCK_DEFINITIONS[blockType].RIGHT_COLOR ; break; // +X 
+                        case 3: shade = 180; faceIndexColor = BLOCK_DEFINITIONS[blockType].LEFT_COLOR ; break; // -X
+                        case 4: shade = 220; faceIndexColor = BLOCK_DEFINITIONS[blockType].FRONT_COLOR ; break; // +Z
+                        case 5: shade = 220; faceIndexColor = BLOCK_DEFINITIONS[blockType].BACK_COLOR ; break; // -Z
                     }
-
                     for (int v = 0; v < 4; v++)
                     {
-                        mesh.colors[colorCursor++] = (unsigned char)(86  * shade / 255);  // R
-                        mesh.colors[colorCursor++] = (unsigned char)(125 * shade / 255);  // G
-                        mesh.colors[colorCursor++] = (unsigned char)(70  * shade / 255);  // B
-                        mesh.colors[colorCursor++] = 255;                                  // A
+                        mesh.colors[colorCursor++] = (unsigned char)(faceIndexColor.r * shade / 255);  // R
+                        mesh.colors[colorCursor++] = (unsigned char)(faceIndexColor.g * shade / 255);  // G
+                        mesh.colors[colorCursor++] = (unsigned char)(faceIndexColor.b  * shade / 255);  // B
+                        mesh.colors[colorCursor++] = (unsigned char)(faceIndexColor.a);                 // A
                     }
+                    
                 }
             }
     // 5. update final counts
@@ -132,57 +135,8 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
     UploadMesh(&mesh, false);
     return mesh;
 }
-/*
-void DrawChunk(const Chunk& chunk){
-    for(int x = 0; x < CHUNK_SIZE; x++)
-        for(int y = 0; y < CHUNK_HEIGHT; y++)
-            for(int z = 0; z < CHUNK_SIZE; z++)
-                if(chunk.blocks[x][y][z] == 1){
-                    Vector3 worldPos = {
-                        chunk.position.x + x + 0.5f,
-                        chunk.position.y + y + 0.5f,
-                        chunk.position.z + z + 0.5f
-                    };
-                    bool surrounded = 
-                    IsSolid(chunk, x+1,y,z) 
-                    && IsSolid(chunk,x-1,y,z) 
-                    &&IsSolid(chunk,x,y+1,z) 
-                    && IsSolid(chunk,x,y-1,z) 
-                    &&IsSolid(chunk,x,y,z+1) 
-                    && IsSolid(chunk,x,y,z-1);
-                    if(!surrounded){ 
-                        DrawCube(worldPos, 1.0f, 1.0f, 1.0f, GREEN);
-                        DrawCubeWires(worldPos, 1.0f, 1.0f, 1.0f, BLACK);
-                    }
-                }
-}*/
-/*
-void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octaves, float persistence) {
-    for (int x = 0; x < CHUNK_SIZE; x++) {
-        for (int z = 0; z < CHUNK_SIZE; z++) {
-            float wx = (chunkX * CHUNK_SIZE + x) * scale ;
-            float wz = (chunkZ * CHUNK_SIZE + z) * scale ;
 
-            float n = FBm2D(wx, wz, octaves, persistence);
-            float t = (n + 1.0f) / 2.0f;
-            int seaLevel  = CHUNK_HEIGHT / 4;      // 16
-            int maxHeight = CHUNK_HEIGHT * 3 / 4;  // 48
-            int height = seaLevel + (int)(t * (maxHeight - seaLevel));
-
-            for (int y = 0; y < CHUNK_HEIGHT; y++) {
-                chunk.blocks[x][y][z] = (y < height) ? 1 : 0;
-            }
-        }
-    }
-    chunk.meshDirty = true;
-} */
-
-void GenerateChunk(Chunk& chunk,
-                   int chunkX,
-                   int chunkZ,
-                   float scale,
-                   int octaves,
-                   float persistence)
+void GenerateChunk(Chunk& chunk,int chunkX,int chunkZ, float scale,int octaves,float persistence)
 {
     for (int x = 0; x < CHUNK_SIZE; x++)
     {
@@ -193,19 +147,19 @@ void GenerateChunk(Chunk& chunk,
 
             // HEIGHTMAP (fast, 2D only)
             float n = FBm2D(wx, wz, octaves, persistence);
-            float t = (n + 1.0f) * 0.5f;
+            float normalizedHeight = (n + 1.0f) * 0.5f;
 
             int seaLevel  = CHUNK_HEIGHT / 4;
             int maxHeight = CHUNK_HEIGHT * 3 / 4;
 
             int height = seaLevel +
-                (int)(t * (maxHeight - seaLevel));
+                (int)(normalizedHeight * (maxHeight - seaLevel));
 
             for (int y = 0; y < CHUNK_HEIGHT; y++)
             {
                 if (y > height)
                 {
-                    chunk.blocks[x][y][z] = 0;
+                    chunk.blocks[x][y][z] = Block::AIR;
                     continue;
                 }
 
@@ -228,8 +182,19 @@ void GenerateChunk(Chunk& chunk,
 
                 if (cave * depthFade > CAVE_THRESHOLD)
                     chunk.blocks[x][y][z] = Block::AIR;
-                else
-                    chunk.blocks[x][y][z] = 1;
+                else {
+                    if(depth == 0){
+                        chunk.blocks[x][y][z] = Block::GRASS;
+                    }
+                    else if(depth > 0  && depth <= 6){
+                        chunk.blocks[x][y][z] = Block::DIRT;
+
+                    } else{
+                        chunk.blocks[x][y][z] = Block::STONE;
+
+                    } 
+                }
+                    
             }
         }
     }
