@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include "noise.h"
 #include "world.h"
+#include "block.h"
 
 bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
 {
@@ -22,6 +23,7 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
 
     // 1. constants and tables (FACE_VERTS, FACE_DIRS)
     const int MAX_FACES = (CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE / 2) * 6;
+    const float ATLAS_TILE_SIZE = 1.0f / 16.0f;
     
     //const int MAX_FACES = 16383;
 
@@ -30,16 +32,16 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
     mesh.vertexCount = MAX_FACES * 4;
     mesh.triangleCount = MAX_FACES * 2;
 
-   
-
     // 2. allocate mesh
     mesh.vertices = (float*)MemAlloc(mesh.vertexCount * 3 * sizeof(float));
     mesh.indices = (unsigned short*)MemAlloc(mesh.triangleCount * 3 * sizeof(unsigned short));;
-    mesh.colors = (unsigned char*)MemAlloc(mesh.vertexCount * 4 * sizeof(unsigned char));
+    //mesh.colors = (unsigned char*)MemAlloc(mesh.vertexCount * 4 * sizeof(unsigned char));
+    mesh.texcoords = (float*)MemAlloc(mesh.vertexCount * 2 * sizeof(float));
     // 3. cursors
     int vertCursor  = 0;
     int indexCursor = 0;
-    int colorCursor = 0;
+    //int colorCursor = 0;
+    int textureCursor = 0;
     // 4. fill loop
     for (int x = 0; x < CHUNK_SIZE; x++)
         for (int y = 0; y < CHUNK_HEIGHT; y++)
@@ -86,6 +88,7 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                     mesh.indices[indexCursor++] = baseVertex + 2;
                     mesh.indices[indexCursor++] = baseVertex + 1;
                     // write 4 colors into mesh.colors
+                    /*
                     unsigned char shade;
                     Color faceIndexColor;
                     switch(f) {
@@ -102,8 +105,100 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                         mesh.colors[colorCursor++] = (unsigned char)(faceIndexColor.g * shade / 255);  // G
                         mesh.colors[colorCursor++] = (unsigned char)(faceIndexColor.b  * shade / 255);  // B
                         mesh.colors[colorCursor++] = (unsigned char)(faceIndexColor.a);                 // A
+                    }*/
+
+                    Vector2 tileCoord = BLOCK_DEFINITIONS[blockType].FACE_TEX[f];
+                    float u0 = tileCoord.x * ATLAS_TILE_SIZE;
+                    float v0 = tileCoord.y * ATLAS_TILE_SIZE;
+                    float u1 = u0 + ATLAS_TILE_SIZE;
+                    float v1 = v0 + ATLAS_TILE_SIZE;
+                    switch (f)
+                    {
+                        case 0: 
+                        //(u1,v1), (u0,v1), (u0,v0), (u1,v0)
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v1;
+
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v1;
+
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v0;
+
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v0;
+                            break;
+                        case 1:
+                        //(u0,v1),(u1,v1), (u1,v0), (u0,v0)
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v1;
+
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v1;
+
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v0;
+
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v0;
+                            break;
+                        case 2:
+                        //(u1,v1),(u1,v0),(u0,v0),(u0,v1)
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v1;
+
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v0;
+
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v0;
+
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v1;
+                            break;
+                        case 3:
+                        //(u1,v0),(u1,v1),(u0,v1),(u0,v0)
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v0;
+
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v1;
+
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v1;
+
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v0;
+                            break;
+                        case 4:
+                        //(u0, v0),(u1, v0),(u1, v1),(u0, v1)
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v0;
+
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v0;
+
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v1;
+
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v1;
+                            break;
+                        case 5:
+                        //(u1, v0),(u0, v0),(u0, v1),(u1, v1)
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v0;
+
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v0;
+
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v1;
+
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v1;
+                            break;
                     }
-                    
                 }
             }
     // 5. update final counts

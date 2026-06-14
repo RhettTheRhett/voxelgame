@@ -29,7 +29,7 @@ struct Chunk {
     bool meshDirty;
 };
 
-void DrawChunk(const Chunk& chunk);
+//void DrawChunk(const Chunk& chunk);
 bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ);
 Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chunkZ);
 void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octaves, float persistence);

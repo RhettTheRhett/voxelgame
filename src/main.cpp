@@ -106,6 +106,11 @@ void DrawChunkBorders(int playerChunkX, int playerChunkZ, int radius) {
     }
 }
 
+Texture2D LoadBlockAtlas() {
+    Texture2D atlas = LoadTexture("assets/textures/blocks/blocksatlas.png");
+    return atlas;
+}
+
 
 int main() {
     InitWindow(1080, 720, "Voxel Game");
@@ -120,7 +125,9 @@ int main() {
     bool showNoiseDebug = false;
     bool showChunkBorders = false; 
 
+    Texture2D atlas = LoadBlockAtlas();
     Material mat = LoadMaterialDefault();
+    mat.maps[MATERIAL_MAP_DIFFUSE].texture = atlas;
 
     Camera3D camera = {};
     camera.fovy       = 70.0f;
