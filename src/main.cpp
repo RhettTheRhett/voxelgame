@@ -121,7 +121,7 @@ int main() {
     float pitch       = 0.0f;
     float speed       = 15.0f;
     float sensitivity = 0.1f;
-    float renderDistance = 12;
+    float renderDistance = 4;
     bool showNoiseDebug = false;
     bool showChunkBorders = false; 
 

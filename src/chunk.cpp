@@ -143,32 +143,32 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                             mesh.texcoords[textureCursor++] = v0;
                             break;
                         case 2:
-                        //(u1,v1),(u1,v0),(u0,v0),(u0,v1)
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v1;
-
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v0;
-
+                        //(u0,v0),(u1,v0),(u1,v1),(u0,v1)
                             mesh.texcoords[textureCursor++] = u0;
                             mesh.texcoords[textureCursor++] = v0;
+
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v0;
+
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v1;
 
                             mesh.texcoords[textureCursor++] = u0;
                             mesh.texcoords[textureCursor++] = v1;
                             break;
                         case 3:
-                        //(u1,v0),(u1,v1),(u0,v1),(u0,v0)
+                        //(u1,v0),(u0,v0),(u0,v1),(u1,v1)
                             mesh.texcoords[textureCursor++] = u1;
                             mesh.texcoords[textureCursor++] = v0;
 
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v1;
+                            mesh.texcoords[textureCursor++] = u0;
+                            mesh.texcoords[textureCursor++] = v0;
 
                             mesh.texcoords[textureCursor++] = u0;
                             mesh.texcoords[textureCursor++] = v1;
 
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v0;
+                            mesh.texcoords[textureCursor++] = u1;
+                            mesh.texcoords[textureCursor++] = v1;
                             break;
                         case 4:
                         //(u0, v0),(u1, v0),(u1, v1),(u0, v1)
