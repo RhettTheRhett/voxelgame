@@ -17,7 +17,7 @@ struct ChunkCoordHash {
 
 struct World {
     std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash> chunks;
-    int seed;
+    int32_t seed;
     float noiseScale;
     int noiseOctaves;
     float noisePersistence;
