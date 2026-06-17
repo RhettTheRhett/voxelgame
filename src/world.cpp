@@ -1,22 +1,36 @@
 #include "world.h"
 #include "chunk.h"
 #include "raymath.h"
+#include "saveload.h"
+
+#include <iostream>
+#include <filesystem>
+#include <string>
 
 void GenerateWorld(World& world, int renderDistance, int playerChunkX, int playerChunkZ) {
     for (int dx = -renderDistance; dx <= renderDistance; dx++) {
         for (int dz = -renderDistance; dz <= renderDistance; dz++) {
             ChunkCoord coord = { playerChunkX + dx, playerChunkZ + dz };
+            std::string chunkPath = GetChunkFilePath(CHUNK_PATH, coord.x, coord.z);
+
+            Chunk chunk = {};
+            chunk.position = {(float) coord.x * CHUNK_SIZE, 0.0f, (float) coord.z * CHUNK_SIZE};
 
             // 1. skip if chunk already exists in world.chunks
             if(world.chunks.count(coord) > 0) continue;
-            // 2. create a new Chunk, set its position
-            Chunk chunk = {};
-            chunk.position = {(float) coord.x * CHUNK_SIZE, 0.0f, (float) coord.z * CHUNK_SIZE};
+            else if(std::filesystem::exists(chunkPath)){
+                //Chunk chunk = {};
+                LoadChunk(chunk, coord.x, coord.z, chunkPath);
+                world.chunks[coord] = chunk;
+            }else{
+
 
             // 3. call GenerateChunk with world noise params
             GenerateChunk(chunk, coord.x, coord.z, world.noiseScale, world.noiseOctaves, world.noisePersistence);
             // 4. insert it into world.chunks
-            world.chunks[coord] = chunk;
+            world.chunks[coord] = chunk; 
+            }
+           
         }
     }
 }
@@ -49,14 +63,23 @@ void DrawWorld(World& world, Material& mat){
 void UnloadDistantChunks(World& world, int playerChunkX, int playerChunkZ, int renderDistance){
     // collect keys to erase first
     std::vector<ChunkCoord> toErase;
+    
     for (auto& [coord, chunk] : world.chunks) {
         //int cx = (int)(chunk.position.x / CHUNK_SIZE);
         //int cz = (int)(chunk.position.z / CHUNK_SIZE);
        if ((abs(coord.x - playerChunkX) > renderDistance || abs(coord.z - playerChunkZ) > renderDistance) ) toErase.push_back(coord);
     }
     // then erase them
+    
     for (auto& coord : toErase) {
-        UnloadMesh(world.chunks[coord].mesh);
+        Chunk& chunk = world.chunks.at(coord);
+        printf("Unloading chunk %d, %d - needsSaving=%d\n", coord.x, coord.z, chunk.needsSaving);
+        if (chunk.needsSaving) {
+            std::string chunkPath = GetChunkFilePath(CHUNK_PATH, coord.x, coord.z);
+            printf("Saving chunk %d, %d to %s\n", coord.x, coord.z, chunkPath.c_str());
+            SaveChunk(chunk, coord.x, coord.z, chunkPath);
+        }
+        UnloadMesh(chunk.mesh);
         world.chunks.erase(coord);
     }
 }
@@ -72,21 +95,34 @@ void SetBlock(World& world, int worldX, int worldY, int worldZ, Block type){
 
     world.chunks.at(coord).blocks[localX][worldY][localZ] = type;
     world.chunks.at(coord).meshDirty = true;
+    world.chunks.at(coord).needsSaving = true;
 
     if (localX == 0) {
         ChunkCoord n = {chunkX - 1, chunkZ};
-        if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+        if (world.chunks.count(n)) {
+            world.chunks.at(n).meshDirty = true;
+            world.chunks.at(n).needsSaving = true;
+        }
     }
     if (localX == CHUNK_SIZE - 1) {
         ChunkCoord n = {chunkX + 1, chunkZ};
-        if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+       if (world.chunks.count(n)) {
+            world.chunks.at(n).meshDirty = true;
+            world.chunks.at(n).needsSaving = true;
+        }
     }
     if (localZ == 0) {
         ChunkCoord n = {chunkX, chunkZ - 1};
-        if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+        if (world.chunks.count(n)) {
+            world.chunks.at(n).meshDirty = true;
+            world.chunks.at(n).needsSaving = true;
+        }
     }
     if (localZ == CHUNK_SIZE - 1) {
         ChunkCoord n = {chunkX, chunkZ + 1};
-        if (world.chunks.count(n)) world.chunks.at(n).meshDirty = true;
+        if (world.chunks.count(n)) {
+            world.chunks.at(n).meshDirty = true;
+            world.chunks.at(n).needsSaving = true;
+        }
     }
 }

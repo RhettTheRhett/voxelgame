@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include "raylib.h"
 #include "block.h"
 
@@ -11,6 +12,8 @@ const int CHUNK_HEIGHT = 128;
 
 constexpr uint32_t CHUNK_FILE_SIGNATURE = 0x564F5843;
 constexpr uint8_t  CHUNK_FILE_VERSION = 1;
+
+static const std::string CHUNK_PATH = "saves/world";
 
 // Cave generation parameters
 static const float CAVE_CHAMBER_SCALE       = 0.008f;
@@ -30,6 +33,7 @@ struct Chunk {
     Vector3 position;
     Mesh mesh;
     bool meshDirty;
+    bool needsSaving;
 };
 
 //void DrawChunk(const Chunk& chunk);

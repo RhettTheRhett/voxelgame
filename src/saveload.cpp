@@ -85,6 +85,7 @@ bool LoadChunk(Chunk& outChunk, int32_t chunkX, int32_t chunkZ, const std::strin
     }
                    
     file.read(reinterpret_cast<char*>(outChunk.blocks), sizeof(outChunk.blocks));
+    outChunk.meshDirty = true;
 
     file.close();
     return true;

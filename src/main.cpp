@@ -6,6 +6,7 @@
 #include "raycast.h"
 #include "block.h"
 #include <cmath>
+#include <filesystem>
 
 void HandleNoiseInput(World& world) {
     auto regen = [&]() {
@@ -114,6 +115,7 @@ Texture2D LoadBlockAtlas() {
 
 int main() {
     ChangeDirectory(GetApplicationDirectory());
+    std::filesystem::create_directories("saves/world/chunks");
     InitWindow(1080, 720, "Voxel Game");
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
@@ -138,7 +140,7 @@ int main() {
     camera.projection = CAMERA_PERSPECTIVE;
 
     World world = {};
-    world.seed             = GetRandomValue(0, 999999999);
+    world.seed             = 22; //GetRandomValue(0, 999999999);
     world.noiseScale       = 0.0044f;
     world.noiseOctaves     = 4;
     world.noisePersistence = 0.55f;
