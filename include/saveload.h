@@ -4,7 +4,12 @@
 #include <filesystem>
 #include <cstdint>
 #include "saveformat.h"
+#include "chunk.h"
 
 void SaveWorldManifest(const WorldManifest& manifest, const std::string& path);
 
-void LoadWorldManifest(const WorldManifest& manifest, const std::string& path);
+bool LoadWorldManifest(const std::string& path, WorldManifest& outManifest);
+
+bool SaveChunk(const Chunk& chunk, int32_t chunkX, int32_t chunkZ, const std::string& path);
+
+std::string GetChunkFilePath(const std::string& worldFolder, int32_t chunkX, int32_t chunkZ);

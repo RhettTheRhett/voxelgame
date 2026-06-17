@@ -113,6 +113,7 @@ Texture2D LoadBlockAtlas() {
 
 
 int main() {
+    ChangeDirectory(GetApplicationDirectory());
     InitWindow(1080, 720, "Voxel Game");
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();

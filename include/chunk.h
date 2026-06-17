@@ -9,6 +9,9 @@ struct World;
 const int CHUNK_SIZE = 16;
 const int CHUNK_HEIGHT = 128;
 
+constexpr uint32_t CHUNK_FILE_SIGNATURE = 0x564F5843;
+constexpr uint8_t  CHUNK_FILE_VERSION = 1;
+
 // Cave generation parameters
 static const float CAVE_CHAMBER_SCALE       = 0.008f;
 static const int   CAVE_CHAMBER_OCTAVES     = 3;
