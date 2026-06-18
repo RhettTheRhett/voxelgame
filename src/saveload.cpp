@@ -7,14 +7,19 @@
 
 
 
-void SaveWorldManifest(const WorldManifest& manifest, const std::string& path) {
+bool SaveWorldManifest(const WorldManifest& manifest, const std::string& path) {
     std::ofstream file(path, std::ios::binary);
     if (!file) {
         printf("Failed to save world manifest to %s\n", path.c_str());
-        return;
+        return false;
     }
     file.write(reinterpret_cast<const char*>(&manifest), sizeof(manifest));
+    if (!file) {
+        printf("Failed to write world manifest data to %s\n", path.c_str());
+        return false;
+    }
     file.close();
+    return true;
 }
 
 std::optional<WorldManifest> LoadWorldManifest(const std::string& path){
@@ -81,9 +86,9 @@ bool LoadChunk(Chunk& outChunk, int32_t chunkX, int32_t chunkZ, const std::strin
     ChunkHeader header;
     file.read(reinterpret_cast<char*>(&header), sizeof(header));
     if (!file) {
-        printf("Failed to read chunk header from %s\n", path.c_str());
-        return false;
-    }
+    printf("Failed to read chunk header from %s\n", path.c_str());
+    return false;
+}
 
     if(header.chunkSignature != CHUNK_FILE_SIGNATURE){
         printf("Chunk signature not valid");

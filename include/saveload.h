@@ -7,7 +7,7 @@
 #include "saveformat.h"
 #include "chunk.h"
 
-void SaveWorldManifest(const WorldManifest& manifest, const std::string& path);
+bool SaveWorldManifest(const WorldManifest& manifest, const std::string& path);
 
 std::optional<WorldManifest> LoadWorldManifest(const std::string& path, WorldManifest& outManifest);
 

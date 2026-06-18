@@ -5,8 +5,11 @@
 #include "world.h"
 #include "raycast.h"
 #include "block.h"
+#include "saveformat.h"
+#include "saveload.h"
 #include <cmath>
 #include <filesystem>
+#include <chrono>
 
 void HandleNoiseInput(World& world) {
     auto regen = [&]() {
@@ -112,6 +115,56 @@ Texture2D LoadBlockAtlas() {
     return atlas;
 }
 
+bool StartNewWorld(World& world, Camera3D& camera, std::string path) {
+    std::filesystem::create_directories(path + "/chunks"); // built from the param, not hardcoded
+
+    int32_t worldSeed = GetRandomValue(-99999999, 99999999);
+    world.seed             = worldSeed;
+    world.noiseScale       = 0.0044f;
+    world.noiseOctaves     = 4;
+    world.noisePersistence = 0.55f;
+
+    WorldManifest manifest = {}; // zero-init everything first, so untouched fields aren't garbage
+    manifest.worldSignature = WORLD_FILE_SIGNATURE;
+    manifest.seed            = worldSeed;
+    manifest.versionMajor    = WORLD_VERSION_MAJOR;
+    manifest.versionMinor    = WORLD_VERSION_MINOR;
+    manifest.versionPatch    = WORLD_VERSION_PATCH;
+
+    strncpy(manifest.worldName, "world", sizeof(manifest.worldName) - 1);
+    // strncpy: copies into the existing buffer, won't overrun it.
+    // sizeof(...) - 1 reserves the last byte for a guaranteed null terminator,
+    // since strncpy doesn't null-terminate if the source is >= the limit you give it.
+
+    uint64_t nowSeconds = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()
+        ).count()
+    );
+    manifest.worldCreationTime = nowSeconds;
+
+    manifest.spawnX = 0;
+    manifest.spawnY = 0;
+    manifest.spawnZ = 0;
+
+    SetNoiseSeed(worldSeed);
+
+    camera.fovy       = 70.0f;
+    camera.position   = {manifest.spawnX, manifest.spawnY, manifest.spawnZ};
+    camera.target     = {0, 0, 0};
+    camera.up         = {0, 1, 0};
+    camera.projection = CAMERA_PERSPECTIVE;
+
+    bool saved = SaveWorldManifest(manifest, path + "/world.dat");
+    // ask SaveWorldManifest directly whether it worked — don't re-derive
+    // that answer from an unrelated filesystem check
+    if (!saved) {
+        printf("Failed to save new world manifest to %s\n", path.c_str());
+    }
+    return saved; // true = ready for PLAYING, false = main should NOT transition state
+}
+
+bool ContinueWorld(World& world, Camera3D& camera);
 
 int main() {
     ChangeDirectory(GetApplicationDirectory());
