@@ -17,15 +17,32 @@ void SaveWorldManifest(const WorldManifest& manifest, const std::string& path) {
     file.close();
 }
 
-bool LoadWorldManifest(const std::string& path, WorldManifest& outManifest){
+std::optional<WorldManifest> LoadWorldManifest(const std::string& path){
     std::ifstream file(path, std::ios::binary);
     if (!file) {
-        printf("Failed to save world manifest to %s\n", path.c_str());
-        return false;
+        printf("Failed to load world manifest to %s\n", path.c_str());
+        return std::nullopt;
     }
+
+    WorldManifest outManifest;
     file.read(reinterpret_cast<char*>(&outManifest), sizeof(outManifest));
-    file.close();
-    return true;
+
+    if (!file) {
+        printf("Failed to read world manifest from %s\n", path.c_str());
+        return std::nullopt;
+    }
+    if (outManifest.worldSignature != WORLD_FILE_SIGNATURE) {
+        printf("World manifest signature not valid\n");
+        return std::nullopt;
+    }
+    if(outManifest.versionMajor != WORLD_VERSION_MAJOR){
+        return std::nullopt;
+    }
+    else if(outManifest.versionMinor > WORLD_VERSION_MINOR){
+        return std::nullopt;
+    } else {
+        return outManifest;   
+    }   
 }
 
 std::string GetChunkFilePath(const std::string& worldFolder, int32_t chunkX, int32_t chunkZ) {
@@ -57,12 +74,17 @@ bool SaveChunk(const Chunk& chunk, int32_t chunkX, int32_t chunkZ, const std::st
 bool LoadChunk(Chunk& outChunk, int32_t chunkX, int32_t chunkZ, const std::string& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
-        printf("Failed to save chunk to %s\n", path.c_str());
+        printf("Failed to load chunk to %s\n", path.c_str());
         return false;
     }
 
     ChunkHeader header;
     file.read(reinterpret_cast<char*>(&header), sizeof(header));
+    if (!file) {
+        printf("Failed to read chunk header from %s\n", path.c_str());
+        return false;
+    }
+
     if(header.chunkSignature != CHUNK_FILE_SIGNATURE){
         printf("Chunk signature not valid");
         return false;

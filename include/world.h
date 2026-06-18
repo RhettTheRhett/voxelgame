@@ -1,5 +1,6 @@
 #pragma once
 #include "chunk.h"
+#include "block.h"
 #include <unordered_map>
 
 struct ChunkCoord {

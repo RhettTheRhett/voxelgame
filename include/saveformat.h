@@ -12,6 +12,13 @@
 // relevant version field instead.
 // ============================================================
 
+inline constexpr uint8_t WORLD_VERSION_MAJOR = 1;
+inline constexpr uint8_t WORLD_VERSION_MINOR = 0;
+inline constexpr uint8_t WORLD_VERSION_PATCH = 0;
+
+inline constexpr uint32_t WORLD_FILE_SIGNATURE = 0x564F4C44;
+
+
 struct ChunkHeader {
     uint32_t chunkSignature;
     int32_t  chunkX;
@@ -23,6 +30,7 @@ struct ChunkHeader {
 };
 
 struct WorldManifest {
+    uint32_t worldSignature;
     char     worldName[64];
     int32_t  seed;
     uint8_t  versionMajor;
