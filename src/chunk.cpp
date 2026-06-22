@@ -35,12 +35,12 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
     // 2. allocate mesh
     mesh.vertices = (float*)MemAlloc(mesh.vertexCount * 3 * sizeof(float));
     mesh.indices = (unsigned short*)MemAlloc(mesh.triangleCount * 3 * sizeof(unsigned short));;
-    //mesh.colors = (unsigned char*)MemAlloc(mesh.vertexCount * 4 * sizeof(unsigned char));
+    mesh.colors = (unsigned char*)MemAlloc(mesh.vertexCount * 4 * sizeof(unsigned char));
     mesh.texcoords = (float*)MemAlloc(mesh.vertexCount * 2 * sizeof(float));
     // 3. cursors
     int vertCursor  = 0;
     int indexCursor = 0;
-    //int colorCursor = 0;
+    int colorCursor = 0;
     int textureCursor = 0;
     // 4. fill loop
     for (int x = 0; x < CHUNK_SIZE; x++)
@@ -88,24 +88,25 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                     mesh.indices[indexCursor++] = baseVertex + 2;
                     mesh.indices[indexCursor++] = baseVertex + 1;
                     // write 4 colors into mesh.colors
-                    /*
+                    
                     unsigned char shade;
-                    Color faceIndexColor;
+                    //Color faceIndexColor;
                     switch(f) {
-                        case 0: shade = 255; faceIndexColor = BLOCK_DEFINITIONS[blockType].TOP_COLOR ; break; // +Y top     - brightest
-                        case 1: shade = 60; faceIndexColor = BLOCK_DEFINITIONS[blockType].BOTTOM_COLOR ;  break; // -Y bottom  - darkest
-                        case 2: shade = 180; faceIndexColor = BLOCK_DEFINITIONS[blockType].RIGHT_COLOR ; break; // +X 
-                        case 3: shade = 180; faceIndexColor = BLOCK_DEFINITIONS[blockType].LEFT_COLOR ; break; // -X
-                        case 4: shade = 220; faceIndexColor = BLOCK_DEFINITIONS[blockType].FRONT_COLOR ; break; // +Z
-                        case 5: shade = 220; faceIndexColor = BLOCK_DEFINITIONS[blockType].BACK_COLOR ; break; // -Z
+                        case 0: shade = 255; break; // +Y top     - brightest
+                        case 1: shade = 60;  break; // -Y bottom  - darkest
+                        case 2: shade = 180; break; // +X 
+                        case 3: shade = 180; break; // -X
+                        case 4: shade = 220; break; // +Z
+                        case 5: shade = 220; break; // -Z
+                        default: shade = 255; break;
                     }
                     for (int v = 0; v < 4; v++)
                     {
-                        mesh.colors[colorCursor++] = (unsigned char)(faceIndexColor.r * shade / 255);  // R
-                        mesh.colors[colorCursor++] = (unsigned char)(faceIndexColor.g * shade / 255);  // G
-                        mesh.colors[colorCursor++] = (unsigned char)(faceIndexColor.b  * shade / 255);  // B
-                        mesh.colors[colorCursor++] = (unsigned char)(faceIndexColor.a);                 // A
-                    }*/
+                        mesh.colors[colorCursor++] = shade;  // R
+                        mesh.colors[colorCursor++] = shade;  // G
+                        mesh.colors[colorCursor++] = shade;  // B
+                        mesh.colors[colorCursor++] = 255;                 // A
+                    }
 
                     Vector2 tileCoord = BLOCK_DEFINITIONS[blockType].FACE_TEX[f];
                     float u0 = tileCoord.x * ATLAS_TILE_SIZE;
