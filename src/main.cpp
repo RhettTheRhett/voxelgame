@@ -191,6 +191,16 @@ bool ContinueWorld(World& world, Camera3D& camera, const std::string& path) {
     return true;
 }
 
+bool DrawButton(Rectangle rect, const char* label, int fontSize, Color buttonColor, Color fontColor){
+
+    Vector2 mousePoint = GetMousePosition();
+    bool btnAction = false;
+
+    DrawRectangle(rect.x,rect.y,rect.width,rect.height, buttonColor);
+    DrawText(label, rect.x,rect.y,fontSize, fontColor);
+    if (CheckCollisionPointRec(mousePoint, rect) && IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) return true;
+    return false;
+}
 
 int main(){
     ChangeDirectory(GetApplicationDirectory());
@@ -200,29 +210,110 @@ int main(){
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
 
+    int lastPlayerChunkX = INT_MIN;
+    int lastPlayerChunkZ = INT_MIN;
+
+    float yaw         = -90.0f;
+    float pitch       = 0.0f;
+    float speed       = 15.0f;
+    float sensitivity = 0.1f;
+    float renderDistance = 4;
+    bool showNoiseDebug = false;
+    bool showChunkBorders = false; 
+
     Texture2D atlas = LoadBlockAtlas();
     Material mat = LoadMaterialDefault();
     mat.maps[MATERIAL_MAP_DIFFUSE].texture = atlas;
 
     Camera3D camera = {};
+    World world = {};
+
+    EnableCursor();
+
     while(!WindowShouldClose()){
-        BeginDrawing();
+        
         switch (state)
         {
-        case GameState::MENU :
-        EnableCursor();
+        // MENU
+        case GameState::MENU : {
 
-        break;
-        
-        case GameState::PLAYING :
-        DisableCursor();
-
-        break;
+            Rectangle newWorldButton = {(float)screenWidth / 2, (float)screenHeight / 4, 300 , 100};
+            Rectangle continueButton = {(float)screenWidth / 2, (float)screenHeight / 2, 300 , 100};
+            BeginDrawing();
+            if(DrawButton(newWorldButton, "New World", 16, BROWN, LIGHTGRAY)){
+                if(StartNewWorld(world,camera,CHUNK_PATH)){
+                   state = GameState::PLAYING;
+                    DisableCursor(); 
+                }
+                
+            }
+             if (DrawButton(continueButton, "Continue", 16, BROWN, LIGHTGRAY)){
+                if(ContinueWorld(world, camera, CHUNK_PATH)){
+                    state = GameState::PLAYING;
+                    DisableCursor();    
+                }
+                
+            }
+            EndDrawing();
+            break;
         }
-        EndDrawing();
+        // PLAYING
+        case GameState::PLAYING :{
+
+            UpdatePlayer(camera, yaw, pitch, speed, sensitivity);
+            HandleNoiseInput(world);
+
+            
+
+            int playerChunkX = (int)floor(camera.position.x / CHUNK_SIZE);
+            int playerChunkZ = (int)floor(camera.position.z / CHUNK_SIZE);
+            UpdateWorldStreaming(world, playerChunkX, playerChunkZ, renderDistance, lastPlayerChunkX, lastPlayerChunkZ);
+
+            Ray ray = GetMouseRay({screenWidth/2.0f, screenHeight/2.0f}, camera);
+            RayHit hit = RayCast(ray, world, 8.0f);
+
+            if(hit.didHit){
+                int worldBlockX = (int)hit.position.x;
+                int worldBlockY = (int)hit.position.y;
+                int worldBlockZ = (int)hit.position.z;
+
+                int placeX = (int)hit.position.x + FACE_DIRS[hit.faceHit][0];
+                int placeY = (int)hit.position.y + FACE_DIRS[hit.faceHit][1];
+                int placeZ = (int)hit.position.z + FACE_DIRS[hit.faceHit][2];
+
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+                    SetBlock(world, worldBlockX, worldBlockY, worldBlockZ, Block::AIR);
+
+                if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
+                    SetBlock(world, placeX, placeY, placeZ, Block::STONE);
+            }
+
+            BeginDrawing();
+                ClearBackground(SKYBLUE);
+                BeginMode3D(camera);
+                    DrawWorld(world, mat);
+                    if (hit.didHit) {
+                        DrawCubeWires(
+                            {hit.position.x + 0.5f, hit.position.y + 0.5f, hit.position.z + 0.5f},
+                            1.01f, 1.01f, 1.01f,
+                            WHITE
+                        );
+                    }
+                    if (showChunkBorders) {
+                        DrawChunkBorders(playerChunkX, playerChunkZ, 3);
+                    }
+                EndMode3D();
+                if (IsKeyPressed(KEY_TAB)) showNoiseDebug = !showNoiseDebug;
+                if (IsKeyPressed(KEY_G)) showChunkBorders = ! showChunkBorders;
+                DrawHUD(world, camera, showNoiseDebug);
+            EndDrawing();
+
+            break;
+        }
+    }
     }
 }
-
+/*
 int main() {
     ChangeDirectory(GetApplicationDirectory());
     std::filesystem::create_directories("saves/world/chunks");
@@ -292,7 +383,7 @@ int main() {
         
 
         BeginDrawing();
-            ClearBackground(RAYWHITE);
+            ClearBackground(SKYBLUE);
             BeginMode3D(camera);
                 DrawWorld(world, mat);
                 if (hit.didHit) {
@@ -314,4 +405,4 @@ int main() {
 
     CloseWindow();
     return 0;
-}
+} */
