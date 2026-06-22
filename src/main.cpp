@@ -164,7 +164,30 @@ bool StartNewWorld(World& world, Camera3D& camera, std::string path) {
     return saved; // true = ready for PLAYING, false = main should NOT transition state
 }
 
-bool ContinueWorld(World& world, Camera3D& camera);
+bool ContinueWorld(World& world, Camera3D& camera, const std::string& path) {
+    std::optional<WorldManifest> result = LoadWorldManifest(path + "/world.dat");
+    if (!result) {
+        printf("No valid world manifest found at %s\n", path.c_str());
+        return false;
+    }
+
+    WorldManifest manifest = result.value();
+
+    world.seed             = manifest.seed;
+    world.noiseScale       = 0.0044f;
+    world.noiseOctaves     = 4;
+    world.noisePersistence = 0.55f;
+
+    SetNoiseSeed(manifest.seed);
+
+    camera.fovy       = 70.0f;
+    camera.position   = {manifest.spawnX, manifest.spawnY, manifest.spawnZ};
+    camera.target     = {0, 0, 0};
+    camera.up         = {0, 1, 0};
+    camera.projection = CAMERA_PERSPECTIVE;
+
+    return true;
+}
 
 int main() {
     ChangeDirectory(GetApplicationDirectory());
