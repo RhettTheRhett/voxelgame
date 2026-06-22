@@ -11,6 +11,8 @@
 #include <filesystem>
 #include <chrono>
 
+enum class GameState { MENU, PLAYING };
+
 void HandleNoiseInput(World& world) {
     auto regen = [&]() {
         SetNoiseSeed(world.seed);
@@ -189,9 +191,42 @@ bool ContinueWorld(World& world, Camera3D& camera, const std::string& path) {
     return true;
 }
 
+
+int main(){
+    ChangeDirectory(GetApplicationDirectory());
+    std::filesystem::create_directories("saves/world/chunks");
+    GameState state = GameState::MENU;
+    InitWindow(1080, 720, "Voxel Game");
+    int screenWidth = GetScreenWidth();
+    int screenHeight = GetScreenHeight();
+
+    Texture2D atlas = LoadBlockAtlas();
+    Material mat = LoadMaterialDefault();
+    mat.maps[MATERIAL_MAP_DIFFUSE].texture = atlas;
+
+    Camera3D camera = {};
+    while(!WindowShouldClose()){
+        BeginDrawing();
+        switch (state)
+        {
+        case GameState::MENU :
+        EnableCursor();
+
+        break;
+        
+        case GameState::PLAYING :
+        DisableCursor();
+
+        break;
+        }
+        EndDrawing();
+    }
+}
+
 int main() {
     ChangeDirectory(GetApplicationDirectory());
     std::filesystem::create_directories("saves/world/chunks");
+    GameState state = GameState::MENU;
     InitWindow(1080, 720, "Voxel Game");
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
@@ -226,7 +261,7 @@ int main() {
     int lastPlayerChunkX = INT_MIN;
     int lastPlayerChunkZ = INT_MIN;
 
-    DisableCursor();
+    
 
     while (!WindowShouldClose()) {
         UpdatePlayer(camera, yaw, pitch, speed, sensitivity);
