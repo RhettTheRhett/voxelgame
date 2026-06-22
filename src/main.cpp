@@ -118,7 +118,9 @@ Texture2D LoadBlockAtlas() {
 }
 
 bool StartNewWorld(World& world, Camera3D& camera, std::string path) {
+    std::filesystem::remove_all(path); // clear previous chunks
     std::filesystem::create_directories(path + "/chunks"); // built from the param, not hardcoded
+    
 
     int32_t worldSeed = GetRandomValue(-99999999, 99999999);
     world.seed             = worldSeed;
@@ -191,6 +193,28 @@ bool ContinueWorld(World& world, Camera3D& camera, const std::string& path) {
     return true;
 }
 
+void SaveAndQuit(World& world, Camera3D& camera, const std::string& path){
+    for (auto& [coord, chunk] : world.chunks){
+        if (chunk.needsSaving) {
+            std::string chunkPath = GetChunkFilePath(CHUNK_PATH, coord.x, coord.z);
+            printf("Saving chunk %d, %d to %s\n", coord.x, coord.z, chunkPath.c_str());
+            SaveChunk(chunk, coord.x, coord.z, chunkPath);
+        }
+    }
+    std::optional<WorldManifest> result = LoadWorldManifest(path + "/world.dat");
+    if (!result) {
+        printf("Failed to load manifest during SaveAndQuit\n");
+        return;
+    }
+    WorldManifest manifest = result.value();
+
+    manifest.spawnX = camera.position.x;
+    manifest.spawnY = camera.position.y;
+    manifest.spawnZ = camera.position.z;
+
+    bool saved = SaveWorldManifest(manifest, path + "/world.dat");
+}
+
 bool DrawButton(Rectangle rect, const char* label, int fontSize, Color buttonColor, Color fontColor){
 
     Vector2 mousePoint = GetMousePosition();
@@ -247,23 +271,23 @@ int main(){
                 }
                 
             }
+            if (std::filesystem::exists("saves/world/world.dat")) {
              if (DrawButton(continueButton, "Continue", 16, BROWN, LIGHTGRAY)){
-                if(ContinueWorld(world, camera, CHUNK_PATH)){
-                    state = GameState::PLAYING;
-                    DisableCursor();    
+                    if(ContinueWorld(world, camera, CHUNK_PATH)){
+                     state = GameState::PLAYING;
+                        DisableCursor();    
+                    }
                 }
-                
             }
+        }
             EndDrawing();
             break;
-        }
+        
         // PLAYING
-        case GameState::PLAYING :{
+        case GameState::PLAYING : {
 
             UpdatePlayer(camera, yaw, pitch, speed, sensitivity);
             HandleNoiseInput(world);
-
-            
 
             int playerChunkX = (int)floor(camera.position.x / CHUNK_SIZE);
             int playerChunkZ = (int)floor(camera.position.z / CHUNK_SIZE);
@@ -312,6 +336,10 @@ int main(){
         }
     }
     }
+    
+    if (state == GameState::PLAYING) {
+        SaveAndQuit(world, camera, CHUNK_PATH);
+    }   
 }
 /*
 int main() {
