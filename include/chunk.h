@@ -27,9 +27,16 @@ static const float CAVE_TUNNEL_PERSISTENCE  = 0.25f;
 static const float CAVE_THRESHOLD           = 0.7f;
 static const float CAVE_SURFACE_FADE_DEPTH  = 4.0f;
 
+struct LightNode {
+    int worldX, worldY, worldZ;
+    uint8_t level;
+};
+
 struct Chunk {
     
     uint16_t blocks[CHUNK_SIZE][CHUNK_HEIGHT][CHUNK_SIZE];
+    uint8_t sunLight[CHUNK_SIZE][CHUNK_HEIGHT][CHUNK_SIZE];
+    uint8_t blockLight[CHUNK_SIZE][CHUNK_HEIGHT][CHUNK_SIZE];
     Vector3 position;
     Mesh mesh;
     bool meshDirty;
@@ -40,3 +47,6 @@ struct Chunk {
 bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ);
 Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chunkZ);
 void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octaves, float persistence);
+
+void PropagateSunlight(Chunk& chunk);
+void PropagateBlockLight(World& world, int chunkX, int chunkZ);

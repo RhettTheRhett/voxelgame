@@ -309,7 +309,7 @@ int main(){
                     SetBlock(world, worldBlockX, worldBlockY, worldBlockZ, Block::AIR);
 
                 if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
-                    SetBlock(world, placeX, placeY, placeZ, Block::STONE);
+                    SetBlock(world, placeX, placeY, placeZ, Block::LIGHT_STONE);
             }
 
             BeginDrawing();
@@ -341,96 +341,3 @@ int main(){
         SaveAndQuit(world, camera, CHUNK_PATH);
     }   
 }
-/*
-int main() {
-    ChangeDirectory(GetApplicationDirectory());
-    std::filesystem::create_directories("saves/world/chunks");
-    GameState state = GameState::MENU;
-    InitWindow(1080, 720, "Voxel Game");
-    int screenWidth = GetScreenWidth();
-    int screenHeight = GetScreenHeight();
-
-    float yaw         = -90.0f;
-    float pitch       = 0.0f;
-    float speed       = 15.0f;
-    float sensitivity = 0.1f;
-    float renderDistance = 4;
-    bool showNoiseDebug = false;
-    bool showChunkBorders = false; 
-
-    Texture2D atlas = LoadBlockAtlas();
-    Material mat = LoadMaterialDefault();
-    mat.maps[MATERIAL_MAP_DIFFUSE].texture = atlas;
-
-    Camera3D camera = {};
-    camera.fovy       = 70.0f;
-    camera.position   = {0, 64, 0};
-    camera.target     = {0, 0, 0};
-    camera.up         = {0, 1, 0};
-    camera.projection = CAMERA_PERSPECTIVE;
-
-    World world = {};
-    world.seed             = 22; //GetRandomValue(0, 999999999);
-    world.noiseScale       = 0.0044f;
-    world.noiseOctaves     = 4;
-    world.noisePersistence = 0.55f;
-
-    SetNoiseSeed(world.seed);
-
-    int lastPlayerChunkX = INT_MIN;
-    int lastPlayerChunkZ = INT_MIN;
-
-    
-
-    while (!WindowShouldClose()) {
-        UpdatePlayer(camera, yaw, pitch, speed, sensitivity);
-        HandleNoiseInput(world);
-
-        int playerChunkX = (int)floor(camera.position.x / CHUNK_SIZE);
-        int playerChunkZ = (int)floor(camera.position.z / CHUNK_SIZE);
-        UpdateWorldStreaming(world, playerChunkX, playerChunkZ, renderDistance, lastPlayerChunkX, lastPlayerChunkZ);
-
-        Ray ray = GetMouseRay({screenWidth/2.0f, screenHeight/2.0f}, camera);
-        RayHit hit = RayCast(ray, world, 8.0f);
-
-        if(hit.didHit){
-            int worldBlockX = (int)hit.position.x;
-            int worldBlockY = (int)hit.position.y;
-            int worldBlockZ = (int)hit.position.z;
-
-            int placeX = (int)hit.position.x + FACE_DIRS[hit.faceHit][0];
-            int placeY = (int)hit.position.y + FACE_DIRS[hit.faceHit][1];
-            int placeZ = (int)hit.position.z + FACE_DIRS[hit.faceHit][2];
-
-            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-                SetBlock(world, worldBlockX, worldBlockY, worldBlockZ, Block::AIR);
-
-            if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
-                SetBlock(world, placeX, placeY, placeZ, Block::STONE);
-        }
-        
-
-        BeginDrawing();
-            ClearBackground(SKYBLUE);
-            BeginMode3D(camera);
-                DrawWorld(world, mat);
-                if (hit.didHit) {
-                    DrawCubeWires(
-                        {hit.position.x + 0.5f, hit.position.y + 0.5f, hit.position.z + 0.5f},
-                        1.01f, 1.01f, 1.01f,
-                        WHITE
-                    );
-                }
-                if (showChunkBorders) {
-                    DrawChunkBorders(playerChunkX, playerChunkZ, 3);
-                }
-            EndMode3D();
-            if (IsKeyPressed(KEY_TAB)) showNoiseDebug = !showNoiseDebug;
-            if (IsKeyPressed(KEY_G)) showChunkBorders = ! showChunkBorders;
-            DrawHUD(world, camera, showNoiseDebug);
-        EndDrawing();
-    }
-
-    CloseWindow();
-    return 0;
-} */

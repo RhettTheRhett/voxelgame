@@ -3,6 +3,7 @@
 #include "noise.h"
 #include "world.h"
 #include "block.h"
+#include <queue>
 
 bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
 {
@@ -90,6 +91,8 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                     // write 4 colors into mesh.colors
                     
                     unsigned char shade;
+                    
+                    
                     //Color faceIndexColor;
                     switch(f) {
                         case 0: shade = 255; break; // +Y top     - brightest
@@ -100,11 +103,17 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                         case 5: shade = 220; break; // -Z
                         default: shade = 255; break;
                     }
+
+                    const float MIN_LIGHT = 0.15f;  
+                    uint8_t effectiveLight = fmaxf(chunk.sunLight[x][y][z], chunk.blockLight[x][y][z]);
+                    float lightFactor = MIN_LIGHT + (1.0f - MIN_LIGHT) * (effectiveLight / 15.0f);
+                    unsigned char finalShade = (unsigned char)(shade * lightFactor);
+
                     for (int v = 0; v < 4; v++)
                     {
-                        mesh.colors[colorCursor++] = shade;  // R
-                        mesh.colors[colorCursor++] = shade;  // G
-                        mesh.colors[colorCursor++] = shade;  // B
+                        mesh.colors[colorCursor++] = finalShade;  // R
+                        mesh.colors[colorCursor++] = finalShade;  // G
+                        mesh.colors[colorCursor++] = finalShade;  // B
                         mesh.colors[colorCursor++] = 255;                 // A
                     }
 
@@ -274,4 +283,100 @@ void GenerateChunk(Chunk& chunk,int chunkX,int chunkZ, float scale,int octaves,f
     }
 
     chunk.meshDirty = true;
+}
+
+
+
+void PropagateSunlight(Chunk& chunk){
+    
+    for (int x = 0; x < CHUNK_SIZE; x++){
+        for (int z = 0; z < CHUNK_SIZE; z++){
+            bool inSunlight = true;
+            for (int y = CHUNK_HEIGHT - 1; y >= 0; y--){
+                
+                if(chunk.blocks[x][y][z] == Block::AIR){
+                    chunk.sunLight[x][y][z] = 15;
+                    //inSunlight = true;
+                } else {
+                    if(inSunlight){
+                        chunk.sunLight[x][y][z] = 15;
+                        inSunlight = false;
+                    }else {chunk.sunLight[x][y][z] = 0;}
+                     
+                }
+            }
+        }
+    }    
+}
+void PropagateBlockLight(World& world, int chunkX, int chunkZ){
+    Chunk& chunk = world.chunks.at({chunkX, chunkZ});
+    
+    std::queue<LightNode> queue;
+    memset(chunk.blockLight, 0, sizeof(chunk.blockLight));
+    // Step 1: seed the queue
+    for (int x = 0; x < CHUNK_SIZE; x++){
+        for (int y = 0; y < CHUNK_HEIGHT; y++){
+            for (int z = 0; z < CHUNK_SIZE; z++) {
+                Block b = (Block)chunk.blocks[x][y][z];
+                if (BLOCK_DEFINITIONS[b].isLightSource) {
+                    queue.push({
+                        chunkX * CHUNK_SIZE + x,  // world X
+                        y,                         // world Y
+                        chunkZ * CHUNK_SIZE + z,  // world Z
+                        BLOCK_DEFINITIONS[b].lightLevel
+                    });
+                }
+            }
+        }
+    }
+
+    // set the light source block's own blockLight value
+    for (int x = 0; x < CHUNK_SIZE; x++)
+        for (int y = 0; y < CHUNK_HEIGHT; y++)
+            for (int z = 0; z < CHUNK_SIZE; z++) {
+                Block b = (Block)chunk.blocks[x][y][z];
+                if (BLOCK_DEFINITIONS[b].isLightSource) {
+                    chunk.blockLight[x][y][z] = BLOCK_DEFINITIONS[b].lightLevel;
+                }
+            }
+    TraceLog(LOG_INFO, "BlockLight queue seeded with %d nodes", (int)queue.size());
+
+    while (!queue.empty()) {
+        LightNode node = queue.front();
+        queue.pop();
+
+        // try all 6 neighbors
+        int dirs[6][3] = {{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+        for (auto& d : dirs) {
+            int nx = node.worldX + d[0];
+            int ny = node.worldY + d[1];
+            int nz = node.worldZ + d[2];
+            uint8_t newLevel = node.level - 1;
+
+            if (newLevel <= 0) continue;
+            if (ny < 0 || ny >= CHUNK_HEIGHT) continue;
+
+            // convert world to chunk coords
+            int nChunkX = (int)floor(nx / (float)CHUNK_SIZE);
+            int nChunkZ = (int)floor(nz / (float)CHUNK_SIZE);
+            ChunkCoord nCoord = {nChunkX, nChunkZ};
+
+            // skip if chunk not loaded
+            if (!world.chunks.count(nCoord)) continue;
+
+            Chunk& nChunk = world.chunks.at(nCoord);
+
+            // convert world to local coords
+            int lx = nx - nChunkX * CHUNK_SIZE;
+            int lz = nz - nChunkZ * CHUNK_SIZE;
+
+            // skip if solid or already brighter
+            if (BLOCK_DEFINITIONS[(Block)nChunk.blocks[lx][ny][lz]].isLightSource) continue;
+            if (nChunk.blockLight[lx][ny][lz] >= newLevel) continue;
+
+            nChunk.blockLight[lx][ny][lz] = newLevel;
+            nChunk.meshDirty = true;
+            queue.push({nx, ny, nz, newLevel});
+        }
+    }
 }

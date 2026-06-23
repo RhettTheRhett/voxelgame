@@ -16,18 +16,18 @@ void GenerateWorld(World& world, int renderDistance, int playerChunkX, int playe
             Chunk chunk = {};
             chunk.position = {(float) coord.x * CHUNK_SIZE, 0.0f, (float) coord.z * CHUNK_SIZE};
 
-            // 1. skip if chunk already exists in world.chunks
+            // skip if chunk already exists in world.chunks
             if(world.chunks.count(coord) > 0) continue;
             else if(std::filesystem::exists(chunkPath)){
                 //Chunk chunk = {};
                 LoadChunk(chunk, coord.x, coord.z, chunkPath);
-                world.chunks[coord] = chunk;
+                PropagateSunlight(chunk);
+                world.chunks[coord] = chunk;                
             }else{
-
-
-            // 3. call GenerateChunk with world noise params
+            // call GenerateChunk with world noise params
             GenerateChunk(chunk, coord.x, coord.z, world.noiseScale, world.noiseOctaves, world.noisePersistence);
-            // 4. insert it into world.chunks
+            // insert it into world.chunks
+            PropagateSunlight(chunk);
             world.chunks[coord] = chunk; 
             }
            
@@ -96,12 +96,16 @@ void SetBlock(World& world, int worldX, int worldY, int worldZ, Block type){
     world.chunks.at(coord).blocks[localX][worldY][localZ] = type;
     world.chunks.at(coord).meshDirty = true;
     world.chunks.at(coord).needsSaving = true;
+    PropagateSunlight(world.chunks.at(coord));
+    PropagateBlockLight(world, chunkX, chunkZ);
 
     if (localX == 0) {
         ChunkCoord n = {chunkX - 1, chunkZ};
         if (world.chunks.count(n)) {
             world.chunks.at(n).meshDirty = true;
             world.chunks.at(n).needsSaving = true;
+            PropagateSunlight(world.chunks.at(n));
+            PropagateBlockLight(world, chunkX, chunkZ);
         }
     }
     if (localX == CHUNK_SIZE - 1) {
@@ -109,6 +113,8 @@ void SetBlock(World& world, int worldX, int worldY, int worldZ, Block type){
        if (world.chunks.count(n)) {
             world.chunks.at(n).meshDirty = true;
             world.chunks.at(n).needsSaving = true;
+            PropagateSunlight(world.chunks.at(n));
+            PropagateBlockLight(world, chunkX, chunkZ);
         }
     }
     if (localZ == 0) {
@@ -116,6 +122,8 @@ void SetBlock(World& world, int worldX, int worldY, int worldZ, Block type){
         if (world.chunks.count(n)) {
             world.chunks.at(n).meshDirty = true;
             world.chunks.at(n).needsSaving = true;
+            PropagateSunlight(world.chunks.at(n));
+            PropagateBlockLight(world, chunkX, chunkZ);
         }
     }
     if (localZ == CHUNK_SIZE - 1) {
@@ -123,6 +131,8 @@ void SetBlock(World& world, int worldX, int worldY, int worldZ, Block type){
         if (world.chunks.count(n)) {
             world.chunks.at(n).meshDirty = true;
             world.chunks.at(n).needsSaving = true;
+            PropagateSunlight(world.chunks.at(n));
+            PropagateBlockLight(world, chunkX, chunkZ);
         }
     }
 }

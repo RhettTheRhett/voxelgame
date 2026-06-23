@@ -26,7 +26,7 @@
     };
 
 enum Block{
-        AIR, GRASS, DIRT, STONE
+        AIR, GRASS, DIRT, STONE, LIGHT_STONE
 };
 /*struct BlockDefinition {
         const char* BLOCK_NAME;
@@ -42,7 +42,9 @@ enum Block{
 
 struct BlockDefinition {
         const char* BLOCK_NAME;     
-        Vector2 FACE_TEX[6];  
+        Vector2 FACE_TEX[6];
+        bool isLightSource;
+        uint8_t lightLevel;  
 };
 
 
@@ -55,8 +57,9 @@ struct BlockDefinition {
 };*/
 
 static BlockDefinition BLOCK_DEFINITIONS[] = {
-        {"AIR", {{},{},{},{},{},{}}},
-        {"GRASS",  {{0,0}, {1,0}, {0, 1}, {0, 1}, {0, 1}, {0, 1}}},
-        {"DIRT", {{1,0},{1,0},{1,0},{1,0},{1,0},{1,0}}},
-        {"STONE", {{2,0}, {2,0}, {2,0}, {2,0}, {2,0}, {2,0}}}
+        {"AIR", {{},{},{},{},{},{}}, false, 0},
+        {"GRASS",  {{0,0}, {1,0}, {0, 1}, {0, 1}, {0, 1}, {0, 1}}, false, 0},
+        {"DIRT", {{1,0},{1,0},{1,0},{1,0},{1,0},{1,0}}, false, 0},
+        {"STONE", {{2,0}, {2,0}, {2,0}, {2,0}, {2,0}, {2,0}}, false, 0},
+        {"LIGHT_STONE", {{1,1}, {1,1},{1,1},{1,1},{1,1},{1,1}}, true, 15}
 };
