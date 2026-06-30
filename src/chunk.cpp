@@ -3,6 +3,7 @@
 #include "noise.h"
 #include "world.h"
 #include "block.h"
+#include "chunkcoord.h"
 #include <queue>
 
 bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
@@ -379,4 +380,20 @@ void PropagateBlockLight(World& world, int chunkX, int chunkZ){
             queue.push({nx, ny, nz, newLevel});
         }
     }
+}
+
+void ClearBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks) {
+    for (const ChunkCoord& coord : affectedChunks) {
+        if (!world.chunks.count(coord)) continue;  // skip unloaded chunks
+        Chunk& chunk = world.chunks.at(coord);
+        memset(chunk.blockLight, 0, sizeof(chunk.blockLight));
+    }
+}
+
+std::vector<ChunkCoord> GetAffectedChunks(int chunkX, int chunkZ) {
+    std::vector<ChunkCoord> result;
+    for (int dx = -1; dx <= 1; dx++)
+        for (int dz = -1; dz <= 1; dz++)
+            result.push_back({chunkX + dx, chunkZ + dz});
+    return result;
 }

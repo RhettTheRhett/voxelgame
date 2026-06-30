@@ -2,8 +2,10 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 #include "raylib.h"
 #include "block.h"
+#include "chunkcoord.h"
 
 struct World;
 
@@ -50,3 +52,6 @@ void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octave
 
 void PropagateSunlight(Chunk& chunk);
 void PropagateBlockLight(World& world, int chunkX, int chunkZ);
+void ClearBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks);
+
+std::vector<ChunkCoord> GetAffectedChunks(int chunkX, int chunkZ);

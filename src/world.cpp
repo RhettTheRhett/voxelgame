@@ -3,6 +3,7 @@
 #include "raymath.h"
 #include "saveload.h"
 
+
 #include <iostream>
 #include <filesystem>
 #include <string>
@@ -84,55 +85,25 @@ void UnloadDistantChunks(World& world, int playerChunkX, int playerChunkZ, int r
     }
 }
 
-void SetBlock(World& world, int worldX, int worldY, int worldZ, Block type){
-    
+void SetBlock(World& world, int worldX, int worldY, int worldZ, Block type) {
     int chunkX = (int)floor(worldX / (float)CHUNK_SIZE);
     int chunkZ = (int)floor(worldZ / (float)CHUNK_SIZE);
     int localX = worldX - chunkX * CHUNK_SIZE;
     int localZ = worldZ - chunkZ * CHUNK_SIZE;
 
     ChunkCoord coord = { chunkX, chunkZ };
+    auto affected = GetAffectedChunks(chunkX, chunkZ);
 
     world.chunks.at(coord).blocks[localX][worldY][localZ] = type;
-    world.chunks.at(coord).meshDirty = true;
     world.chunks.at(coord).needsSaving = true;
-    PropagateSunlight(world.chunks.at(coord));
-    PropagateBlockLight(world, chunkX, chunkZ);
 
-    if (localX == 0) {
-        ChunkCoord n = {chunkX - 1, chunkZ};
-        if (world.chunks.count(n)) {
-            world.chunks.at(n).meshDirty = true;
-            world.chunks.at(n).needsSaving = true;
-            PropagateSunlight(world.chunks.at(n));
-            PropagateBlockLight(world, chunkX, chunkZ);
-        }
-    }
-    if (localX == CHUNK_SIZE - 1) {
-        ChunkCoord n = {chunkX + 1, chunkZ};
-       if (world.chunks.count(n)) {
-            world.chunks.at(n).meshDirty = true;
-            world.chunks.at(n).needsSaving = true;
-            PropagateSunlight(world.chunks.at(n));
-            PropagateBlockLight(world, chunkX, chunkZ);
-        }
-    }
-    if (localZ == 0) {
-        ChunkCoord n = {chunkX, chunkZ - 1};
-        if (world.chunks.count(n)) {
-            world.chunks.at(n).meshDirty = true;
-            world.chunks.at(n).needsSaving = true;
-            PropagateSunlight(world.chunks.at(n));
-            PropagateBlockLight(world, chunkX, chunkZ);
-        }
-    }
-    if (localZ == CHUNK_SIZE - 1) {
-        ChunkCoord n = {chunkX, chunkZ + 1};
-        if (world.chunks.count(n)) {
-            world.chunks.at(n).meshDirty = true;
-            world.chunks.at(n).needsSaving = true;
-            PropagateSunlight(world.chunks.at(n));
-            PropagateBlockLight(world, chunkX, chunkZ);
+    ClearBlockLight(world, affected);
+    PropagateSunlight(world.chunks.at(coord));  // still single-chunk for now
+    PropagateBlockLight(world, chunkX, chunkZ); // still single-chunk for now
+
+    for (const ChunkCoord& c : affected) {
+        if (world.chunks.count(c)) {
+            world.chunks.at(c).meshDirty = true;
         }
     }
 }
