@@ -99,7 +99,7 @@ void SetBlock(World& world, int worldX, int worldY, int worldZ, Block type) {
 
     ClearBlockLight(world, affected);
     PropagateSunlight(world.chunks.at(coord));  // still single-chunk for now
-    PropagateBlockLight(world, chunkX, chunkZ); // still single-chunk for now
+    PropagateBlockLight(world, affected); // still single-chunk for now
 
     for (const ChunkCoord& c : affected) {
         if (world.chunks.count(c)) {
