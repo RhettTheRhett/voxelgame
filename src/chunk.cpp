@@ -309,44 +309,32 @@ void PropagateSunlight(Chunk& chunk){
         }
     }    
 }
-void PropagateBlockLight(World& world, int chunkX, int chunkZ){
-    Chunk& chunk = world.chunks.at({chunkX, chunkZ});
-    
+void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks) {
     std::queue<LightNode> queue;
-    memset(chunk.blockLight, 0, sizeof(chunk.blockLight));
-    // Step 1: seed the queue
-    for (int x = 0; x < CHUNK_SIZE; x++){
-        for (int y = 0; y < CHUNK_HEIGHT; y++){
-            for (int z = 0; z < CHUNK_SIZE; z++) {
-                Block b = (Block)chunk.blocks[x][y][z];
-                if (BLOCK_DEFINITIONS[b].isLightSource) {
-                    queue.push({
-                        chunkX * CHUNK_SIZE + x,  // world X
-                        y,                         // world Y
-                        chunkZ * CHUNK_SIZE + z,  // world Z
-                        BLOCK_DEFINITIONS[b].lightLevel
-                    });
+
+    // seed from every light source in every affected chunk
+    for (const ChunkCoord& coord : affectedChunks) {
+        if (!world.chunks.count(coord)) continue;
+        Chunk& chunk = world.chunks.at(coord);
+
+        for (int x = 0; x < CHUNK_SIZE; x++)
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+                for (int z = 0; z < CHUNK_SIZE; z++) {
+                    Block b = (Block)chunk.blocks[x][y][z];
+                    if (BLOCK_DEFINITIONS[b].isLightSource) {
+                        int worldX = coord.x * CHUNK_SIZE + x;
+                        int worldZ = coord.z * CHUNK_SIZE + z;
+                        chunk.blockLight[x][y][z] = BLOCK_DEFINITIONS[b].lightLevel;
+                        queue.push({worldX, y, worldZ, BLOCK_DEFINITIONS[b].lightLevel});
+                    }
                 }
-            }
-        }
     }
 
-    // set the light source block's own blockLight value
-    for (int x = 0; x < CHUNK_SIZE; x++)
-        for (int y = 0; y < CHUNK_HEIGHT; y++)
-            for (int z = 0; z < CHUNK_SIZE; z++) {
-                Block b = (Block)chunk.blocks[x][y][z];
-                if (BLOCK_DEFINITIONS[b].isLightSource) {
-                    chunk.blockLight[x][y][z] = BLOCK_DEFINITIONS[b].lightLevel;
-                }
-            }
-    TraceLog(LOG_INFO, "BlockLight queue seeded with %d nodes", (int)queue.size());
-
+    // BFS spread 
     while (!queue.empty()) {
         LightNode node = queue.front();
         queue.pop();
 
-        // try all 6 neighbors
         int dirs[6][3] = {{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
         for (auto& d : dirs) {
             int nx = node.worldX + d[0];
@@ -357,21 +345,16 @@ void PropagateBlockLight(World& world, int chunkX, int chunkZ){
             if (newLevel <= 0) continue;
             if (ny < 0 || ny >= CHUNK_HEIGHT) continue;
 
-            // convert world to chunk coords
             int nChunkX = (int)floor(nx / (float)CHUNK_SIZE);
             int nChunkZ = (int)floor(nz / (float)CHUNK_SIZE);
             ChunkCoord nCoord = {nChunkX, nChunkZ};
 
-            // skip if chunk not loaded
             if (!world.chunks.count(nCoord)) continue;
-
             Chunk& nChunk = world.chunks.at(nCoord);
 
-            // convert world to local coords
             int lx = nx - nChunkX * CHUNK_SIZE;
             int lz = nz - nChunkZ * CHUNK_SIZE;
 
-            // skip if solid or already brighter
             if (BLOCK_DEFINITIONS[(Block)nChunk.blocks[lx][ny][lz]].isLightSource) continue;
             if (nChunk.blockLight[lx][ny][lz] >= newLevel) continue;
 

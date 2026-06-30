@@ -51,7 +51,7 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
 void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octaves, float persistence);
 
 void PropagateSunlight(Chunk& chunk);
-void PropagateBlockLight(World& world, int chunkX, int chunkZ);
+void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks);
 void ClearBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks);
 
 std::vector<ChunkCoord> GetAffectedChunks(int chunkX, int chunkZ);
