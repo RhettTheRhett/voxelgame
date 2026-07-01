@@ -288,26 +288,80 @@ void GenerateChunk(Chunk& chunk,int chunkX,int chunkZ, float scale,int octaves,f
 
 
 
-void PropagateSunlight(Chunk& chunk){
-    
-    for (int x = 0; x < CHUNK_SIZE; x++){
-        for (int z = 0; z < CHUNK_SIZE; z++){
-            bool inSunlight = true;
-            for (int y = CHUNK_HEIGHT - 1; y >= 0; y--){
-                
-                if(chunk.blocks[x][y][z] == Block::AIR){
-                    chunk.sunLight[x][y][z] = 15;
-                    //inSunlight = true;
-                } else {
-                    if(inSunlight){
-                        chunk.sunLight[x][y][z] = 15;
-                        inSunlight = false;
-                    }else {chunk.sunLight[x][y][z] = 0;}
-                     
+void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChunks){
+    for (const ChunkCoord& coord : affectedChunks) {
+        if (!world.chunks.count(coord)) continue;
+        Chunk& chunk = world.chunks.at(coord);
+        for (int x = 0; x < CHUNK_SIZE; x++){
+            for (int z = 0; z < CHUNK_SIZE; z++){
+                bool inSunlight = true;
+                for (int y = CHUNK_HEIGHT - 1; y >= 0; y--){
+                    
+                    if(chunk.blocks[x][y][z] == Block::AIR){
+                        if(inSunlight){
+                            chunk.sunLight[x][y][z] = 15;
+                        } else {
+                            chunk.sunLight[x][y][z] = 0;
+                        }
+                    } else {
+                        if(inSunlight){
+                            chunk.sunLight[x][y][z] = 15;
+                            inSunlight = false;
+                        }else {chunk.sunLight[x][y][z] = 0;}
+                        
+                    }
                 }
             }
+        }  
+    }
+    std::queue<LightNode> queue;
+    for (const ChunkCoord& coord : affectedChunks) {
+        if (!world.chunks.count(coord)) continue;
+        Chunk& chunk = world.chunks.at(coord);
+        for (int x = 0; x < CHUNK_SIZE; x++)
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+                for (int z = 0; z < CHUNK_SIZE; z++) {
+                    if (chunk.blocks[x][y][z] == (uint16_t)Block::AIR && chunk.sunLight[x][y][z] == 15) {
+                        if (y == 0 || chunk.blocks[x][y-1][z] != (uint16_t)Block::AIR) {
+                            queue.push({coord.x * CHUNK_SIZE + x, y, coord.z * CHUNK_SIZE + z,15 });
+                            break;
+                        }
+                    }
+                }
+    }
+    while (!queue.empty()) {
+        LightNode node = queue.front();
+        queue.pop();
+
+        int dirs[6][3] = {{1,0,0},{-1,0,0},{0,1,0},{0,-1,0},{0,0,1},{0,0,-1}};
+        for (auto& d : dirs) {
+            int nx = node.worldX + d[0];
+            int ny = node.worldY + d[1];
+            int nz = node.worldZ + d[2];
+            uint8_t newLevel = node.level - 1;
+
+            if (newLevel <= 0) continue;
+            if (ny < 0 || ny >= CHUNK_HEIGHT) continue;
+
+            int nChunkX = (int)floor(nx / (float)CHUNK_SIZE);
+            int nChunkZ = (int)floor(nz / (float)CHUNK_SIZE);
+            ChunkCoord nCoord = {nChunkX, nChunkZ};
+
+            if (!world.chunks.count(nCoord)) continue;
+            Chunk& nChunk = world.chunks.at(nCoord);
+
+            int lx = nx - nChunkX * CHUNK_SIZE;
+            int lz = nz - nChunkZ * CHUNK_SIZE;
+
+            if (BLOCK_DEFINITIONS[(Block)nChunk.blocks[lx][ny][lz]].isLightSource) continue;
+            if (nChunk.sunLight[lx][ny][lz] >= newLevel) continue;
+
+            nChunk.sunLight[lx][ny][lz] = newLevel;
+            nChunk.meshDirty = true;
+            queue.push({nx, ny, nz, newLevel});
         }
-    }    
+    }
+
 }
 void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks) {
     std::queue<LightNode> queue;
@@ -379,4 +433,14 @@ std::vector<ChunkCoord> GetAffectedChunks(int chunkX, int chunkZ) {
         for (int dz = -1; dz <= 1; dz++)
             result.push_back({chunkX + dx, chunkZ + dz});
     return result;
+}
+
+void PropagateSunlight(World& world, int chunkX, int chunkZ) {
+    auto affected = GetAffectedChunks(chunkX, chunkZ);
+    PropagateSunlight(world, affected);
+}
+
+void PropagateBlockLight(World& world, int chunkX, int chunkZ) {
+    auto affected = GetAffectedChunks(chunkX, chunkZ);
+    PropagateBlockLight(world, affected);
 }

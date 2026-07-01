@@ -50,8 +50,11 @@ bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBloc
 Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chunkZ);
 void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octaves, float persistence);
 
-void PropagateSunlight(Chunk& chunk);
+void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChunks);
 void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks);
 void ClearBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks);
 
 std::vector<ChunkCoord> GetAffectedChunks(int chunkX, int chunkZ);
+
+void PropagateSunlight(World& world, int chunkX, int chunkZ);
+void PropagateBlockLight(World& world, int chunkX, int chunkZ);
