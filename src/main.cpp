@@ -234,6 +234,9 @@ int main(){
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
 
+    Shader shader = LoadShader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag");
+    int sunBrightnessLocation = GetShaderLocation(shader, "sunBrightness"); 
+
     int lastPlayerChunkX = INT_MIN;
     int lastPlayerChunkZ = INT_MIN;
 
@@ -254,7 +257,7 @@ int main(){
 
     EnableCursor();
 
-    while(!WindowShouldClose()){
+    while(!WindowShouldClose()){    
         
         switch (state)
         {
