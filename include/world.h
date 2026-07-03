@@ -2,12 +2,13 @@
 #include "chunk.h"
 #include "block.h"
 #include "chunkcoord.h"
+#include "saveformat.h"
 #include <unordered_map>
 
 
 struct World {
     std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash> chunks;
-    int32_t seed;
+    WorldManifest manifest;
     float noiseScale;
     int noiseOctaves;
     float noisePersistence;

@@ -7,6 +7,8 @@
 #include "block.h"
 #include "saveformat.h"
 #include "saveload.h"
+#include "atmosphere.h"
+#include "constants.h"
 #include <cmath>
 #include <filesystem>
 #include <chrono>
@@ -15,7 +17,7 @@ enum class GameState { MENU, PLAYING };
 
 void HandleNoiseInput(World& world) {
     auto regen = [&]() {
-        SetNoiseSeed(world.seed);
+        //SetNoiseSeed(world.seed);
         world.chunks.clear();
         GenerateWorld(world, 3, 0, 0);
     };
@@ -26,8 +28,8 @@ void HandleNoiseInput(World& world) {
     if (IsKeyPressed(KEY_LEFT))  { world.noiseOctaves = __max(world.noiseOctaves-1, 1); regen(); }
     if (IsKeyPressed(KEY_E))     { world.noisePersistence = __min(world.noisePersistence+0.05f, 0.95f); regen(); }
     if (IsKeyPressed(KEY_Q))     { world.noisePersistence = __max(world.noisePersistence-0.05f, 0.05f); regen(); }
-    if (IsKeyPressed(KEY_N))     { world.seed++; regen(); }
-    if (IsKeyPressed(KEY_B))     { world.seed--; regen(); }
+    //if (IsKeyPressed(KEY_N))     { world.seed++; regen(); }
+    //if (IsKeyPressed(KEY_B))     { world.seed--; regen(); }
 }
 
 void UpdatePlayer(Camera3D& camera, float& yaw, float& pitch, float speed, float sensitivity) {
@@ -92,7 +94,8 @@ void DrawHUD(const World& world, const Camera3D& camera, bool showNoiseDebug) {
     DrawText(TextFormat("Scale: %.4f  [UP/DOWN]",     world.noiseScale),       10, 60,  20, DARKGREEN);
     DrawText(TextFormat("Octaves: %d  [LEFT/RIGHT]",  world.noiseOctaves),     10, 85,  20, DARKGREEN);
     DrawText(TextFormat("Persist: %.2f  [Q/E]",       world.noisePersistence), 10, 110, 20, DARKGREEN);
-    DrawText(TextFormat("Seed: %d  [B/N]",            world.seed),             10, 135, 20, DARKGREEN);
+    //DrawText(TextFormat("Seed: %d  [B/N]",            world.seed),             10, 135, 20, DARKGREEN);
+    DrawText(TextFormat("Time Of Day: %.1f",            world.manifest.timeOfDay),             10, 135, 20, DARKGREEN);
     DrawLine(screenWidth/2, screenHeight/2 - 10, screenWidth/2, screenHeight/2 + 10, WHITE);
     DrawLine(screenWidth/2 - 10, screenHeight/2, screenWidth/2 + 10, screenHeight/2, WHITE);
 }
@@ -121,19 +124,19 @@ bool StartNewWorld(World& world, Camera3D& camera, std::string path) {
     std::filesystem::remove_all(path); // clear previous chunks
     std::filesystem::create_directories(path + "/chunks"); // built from the param, not hardcoded
     
-
-    int32_t worldSeed = GetRandomValue(-99999999, 99999999);
-    world.seed             = worldSeed;
-    world.noiseScale       = 0.0044f;
-    world.noiseOctaves     = 4;
+    world.noiseScale = 0.0044f;
+    world.noiseOctaves = 4;
     world.noisePersistence = 0.55f;
 
-    WorldManifest manifest = {}; // zero-init everything first, so untouched fields aren't garbage
+    WorldManifest manifest = {};
+    // zero-init everything first, so untouched fields aren't garbage
+    world.manifest = manifest; 
     manifest.worldSignature = WORLD_FILE_SIGNATURE;
-    manifest.seed            = worldSeed;
-    manifest.versionMajor    = WORLD_VERSION_MAJOR;
-    manifest.versionMinor    = WORLD_VERSION_MINOR;
-    manifest.versionPatch    = WORLD_VERSION_PATCH;
+    manifest.seed = GetRandomValue(-99999999, 99999999);;
+    manifest.versionMajor = WORLD_VERSION_MAJOR;
+    manifest.versionMinor = WORLD_VERSION_MINOR;
+    manifest.versionPatch = WORLD_VERSION_PATCH;
+    manifest.timeOfDay = 0.0f;
 
     strncpy(manifest.worldName, "world", sizeof(manifest.worldName) - 1);
     // strncpy: copies into the existing buffer, won't overrun it.
@@ -151,7 +154,7 @@ bool StartNewWorld(World& world, Camera3D& camera, std::string path) {
     manifest.spawnY = 0;
     manifest.spawnZ = 0;
 
-    SetNoiseSeed(worldSeed);
+    SetNoiseSeed(manifest.seed);
 
     camera.fovy       = 70.0f;
     camera.position   = {manifest.spawnX, manifest.spawnY, manifest.spawnZ};
@@ -175,17 +178,15 @@ bool ContinueWorld(World& world, Camera3D& camera, const std::string& path) {
         return false;
     }
 
-    WorldManifest manifest = result.value();
-
-    world.seed             = manifest.seed;
+    world.manifest = result.value();
     world.noiseScale       = 0.0044f;
     world.noiseOctaves     = 4;
     world.noisePersistence = 0.55f;
 
-    SetNoiseSeed(manifest.seed);
+    SetNoiseSeed(world.manifest.seed);
 
     camera.fovy       = 70.0f;
-    camera.position   = {manifest.spawnX, manifest.spawnY, manifest.spawnZ};
+    camera.position   = {world.manifest.spawnX, world.manifest.spawnY, world.manifest.spawnZ};
     camera.target     = {0, 0, 0};
     camera.up         = {0, 1, 0};
     camera.projection = CAMERA_PERSPECTIVE;
@@ -206,7 +207,8 @@ void SaveAndQuit(World& world, Camera3D& camera, const std::string& path){
         printf("Failed to load manifest during SaveAndQuit\n");
         return;
     }
-    WorldManifest manifest = result.value();
+    //WorldManifest manifest = result.value();
+    WorldManifest manifest = world.manifest;
 
     manifest.spawnX = camera.position.x;
     manifest.spawnY = camera.position.y;
@@ -226,6 +228,12 @@ bool DrawButton(Rectangle rect, const char* label, int fontSize, Color buttonCol
     return false;
 }
 
+void AdvanceTime(float deltaTime, World& world){
+    float deltaTicks = deltaTime * TICKS_PER_SECOND;
+    world.manifest.timeOfDay += deltaTicks;
+    world.manifest.timeOfDay = std::fmod(world.manifest.timeOfDay, DAY_LENGTH_TICKS);
+}
+
 int main(){
     ChangeDirectory(GetApplicationDirectory());
     std::filesystem::create_directories("saves/world/chunks");
@@ -237,12 +245,14 @@ int main(){
     Shader shader = LoadShader("assets/shaders/chunk.vert", "assets/shaders/chunk.frag");
     int sunBrightnessLocation = GetShaderLocation(shader, "sunBrightness"); 
 
+    float currentTicks = 0.0f;
+
     int lastPlayerChunkX = INT_MIN;
     int lastPlayerChunkZ = INT_MIN;
 
-    float yaw         = -90.0f;
-    float pitch       = 0.0f;
-    float speed       = 15.0f;
+    float yaw = -90.0f;
+    float pitch = 0.0f;
+    float speed  = 15.0f;
     float sensitivity = 0.1f;
     float renderDistance = 4;
     bool showNoiseDebug = false;
@@ -251,6 +261,7 @@ int main(){
     Texture2D atlas = LoadBlockAtlas();
     Material mat = LoadMaterialDefault();
     mat.maps[MATERIAL_MAP_DIFFUSE].texture = atlas;
+    mat.shader = shader;
 
     Camera3D camera = {};
     World world = {};
@@ -282,15 +293,16 @@ int main(){
                     }
                 }
             }
-        }
             EndDrawing();
             break;
         
+        }
+            
         // PLAYING
         case GameState::PLAYING : {
 
             UpdatePlayer(camera, yaw, pitch, speed, sensitivity);
-            HandleNoiseInput(world);
+            //HandleNoiseInput(world);
 
             int playerChunkX = (int)floor(camera.position.x / CHUNK_SIZE);
             int playerChunkZ = (int)floor(camera.position.z / CHUNK_SIZE);
@@ -315,8 +327,13 @@ int main(){
                     SetBlock(world, placeX, placeY, placeZ, Block::LIGHT_STONE);
             }
 
+            //sunlight stuff
+            AdvanceTime(GetFrameTime(), world);
+            float sunBrightness = CalculateSunBrightness(world.manifest.timeOfDay);
+            SetShaderValue(shader, sunBrightnessLocation, &sunBrightness, SHADER_UNIFORM_FLOAT);
+
             BeginDrawing();
-                ClearBackground(SKYBLUE);
+                ClearBackground(CalculateSkyColor(world.manifest.timeOfDay));
                 BeginMode3D(camera);
                     DrawWorld(world, mat);
                     if (hit.didHit) {
@@ -342,5 +359,6 @@ int main(){
     
     if (state == GameState::PLAYING) {
         SaveAndQuit(world, camera, CHUNK_PATH);
+        UnloadShader(shader);
     }   
 }

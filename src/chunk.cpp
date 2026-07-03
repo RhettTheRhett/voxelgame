@@ -105,17 +105,22 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                         default: shade = 255; break;
                     }
 
-                    const float MIN_LIGHT = 0.15f;  
-                    uint8_t effectiveLight = fmaxf(chunk.sunLight[x][y][z], chunk.blockLight[x][y][z]);
-                    float lightFactor = MIN_LIGHT + (1.0f - MIN_LIGHT) * (effectiveLight / 15.0f);
-                    unsigned char finalShade = (unsigned char)(shade * lightFactor);
+                    const float MIN_LIGHT = 0.15f;
+
+                    // Sunlight -> drives RGB, gets scaled by sunBrightness uniform later
+                    float sunFactor = MIN_LIGHT + (1.0f - MIN_LIGHT) * (chunk.sunLight[x][y][z] / 15.0f);
+                    unsigned char sunShade = (unsigned char)(shade * sunFactor);
+
+                    // Block light -> drives alpha, immune to sunBrightness
+                    float blockFactor = chunk.blockLight[x][y][z] / 15.0f;
+                    unsigned char blockShade = (unsigned char)(255 * blockFactor);
 
                     for (int v = 0; v < 4; v++)
                     {
-                        mesh.colors[colorCursor++] = finalShade;  // R
-                        mesh.colors[colorCursor++] = finalShade;  // G
-                        mesh.colors[colorCursor++] = finalShade;  // B
-                        mesh.colors[colorCursor++] = 255;                 // A
+                        mesh.colors[colorCursor++] = sunShade;   // R
+                        mesh.colors[colorCursor++] = sunShade;   // G
+                        mesh.colors[colorCursor++] = sunShade;   // B
+                        mesh.colors[colorCursor++] = blockShade; // A -- now carries block light, not transparency
                     }
 
                     Vector2 tileCoord = BLOCK_DEFINITIONS[blockType].FACE_TEX[f];

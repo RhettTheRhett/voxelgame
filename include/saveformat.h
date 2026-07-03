@@ -13,8 +13,8 @@
 // ============================================================
 
 inline constexpr uint8_t WORLD_VERSION_MAJOR = 1;
-inline constexpr uint8_t WORLD_VERSION_MINOR = 0;
-inline constexpr uint8_t WORLD_VERSION_PATCH = 6;
+inline constexpr uint8_t WORLD_VERSION_MINOR = 1;
+inline constexpr uint8_t WORLD_VERSION_PATCH = 0;
 
 inline constexpr uint32_t WORLD_FILE_SIGNATURE = 0x564F4C44;
 
@@ -40,6 +40,8 @@ struct WorldManifest {
     float    spawnX, spawnY, spawnZ;
     uint8_t  pvpEnabled;
     uint8_t  cheatsEnabled;
+    // v1.1.0 additions
+    float timeOfDay;  // 0.0 to 24000.0, advances each frame
 };
 
 struct PlayerData {
