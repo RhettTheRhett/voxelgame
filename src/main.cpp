@@ -179,16 +179,16 @@ bool ContinueWorld(World& world, Camera3D& camera, const std::string& path) {
     }
 
     world.manifest = result.value();
-    world.noiseScale       = 0.0044f;
-    world.noiseOctaves     = 4;
+    world.noiseScale = 0.0044f;
+    world.noiseOctaves  = 4;
     world.noisePersistence = 0.55f;
 
     SetNoiseSeed(world.manifest.seed);
 
-    camera.fovy       = 70.0f;
-    camera.position   = {world.manifest.spawnX, world.manifest.spawnY, world.manifest.spawnZ};
-    camera.target     = {0, 0, 0};
-    camera.up         = {0, 1, 0};
+    camera.fovy = 70.0f;
+    camera.position = {world.manifest.spawnX, world.manifest.spawnY, world.manifest.spawnZ};
+    camera.target = {0, 0, 0};
+    camera.up = {0, 1, 0};
     camera.projection = CAMERA_PERSPECTIVE;
 
     return true;
