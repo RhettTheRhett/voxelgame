@@ -9,6 +9,7 @@
 #include "saveload.h"
 #include "atmosphere.h"
 #include "constants.h"
+#include "player.h"
 #include <cmath>
 #include <filesystem>
 #include <chrono>
@@ -61,6 +62,40 @@ void UpdatePlayer(Camera3D& camera, float& yaw, float& pitch, float speed, float
     
 
     camera.target = camera.position + forward;
+}
+
+void ChangeHotbarSlot(Player& player){
+    if(IsKeyPressed(KEY_ONE)){
+        player.SelectSlot(0);
+    }
+    if(IsKeyPressed(KEY_TWO)){
+        player.SelectSlot(1);
+    }
+    if(IsKeyPressed(KEY_THREE)){
+        player.SelectSlot(2);
+    }
+    if(IsKeyPressed(KEY_FOUR)){
+    player.SelectSlot(3);
+    }
+    if(IsKeyPressed(KEY_FIVE)){
+    player.SelectSlot(4);
+    }
+    if(IsKeyPressed(KEY_SIX)){
+    player.SelectSlot(5);
+    }
+    if(IsKeyPressed(KEY_SEVEN)){
+        player.SelectSlot(6);
+    }
+    if(IsKeyPressed(KEY_EIGHT)){
+        player.SelectSlot(7);
+    }
+    if(IsKeyPressed(KEY_NINE)){
+        player.SelectSlot(8);
+    }
+    float mouseWheelMovement = GetMouseWheelMove();
+    if(mouseWheelMovement){
+        player.ScrollSlot((int)mouseWheelMovement * -1);
+    }
 }
 
 void UpdateWorldStreaming(World& world, int playerChunkX, int playerChunkZ, float renderDistance, int& lastPlayerChunkX, int& lastPlayerChunkZ) {
@@ -228,6 +263,28 @@ bool DrawButton(Rectangle rect, const char* label, int fontSize, Color buttonCol
     return false;
 }
 
+void DrawHotbar(const Player& player)
+{
+    const int hotbarWidth = HOTBAR_SIZE * SLOT_SIZE + (HOTBAR_SIZE - 1) * SLOT_PADDING;
+
+    const int firstX = (GetScreenWidth() - hotbarWidth) / 2;
+    const int firstY = GetScreenHeight() - SLOT_SIZE - BOTTOM_MARGIN;
+
+    for (int i = 0; i < HOTBAR_SIZE; i++)
+    {
+        int x = firstX + i * (SLOT_SIZE + SLOT_PADDING);
+        int y = firstY;
+
+        // Draw slot background
+        DrawRectangle(x, y, SLOT_SIZE, SLOT_SIZE, DARKGRAY);
+
+        // Highlight selected slot
+        Color borderColor = (i == player.GetData().currentSlot) ? YELLOW : LIGHTGRAY;
+
+        DrawRectangleLines(x, y, SLOT_SIZE, SLOT_SIZE, borderColor);
+    }
+}
+
 void AdvanceTime(float deltaTime, World& world){
     float deltaTicks = deltaTime * TICKS_PER_SECOND;
     world.manifest.timeOfDay += deltaTicks;
@@ -254,7 +311,7 @@ int main(){
     float pitch = 0.0f;
     float speed  = 15.0f;
     float sensitivity = 0.1f;
-    float renderDistance = 12;
+    float renderDistance = 4;
     bool showNoiseDebug = false;
     bool showChunkBorders = false; 
 
@@ -265,6 +322,7 @@ int main(){
 
     Camera3D camera = {};
     World world = {};
+    Player player;
 
     EnableCursor();
 
@@ -302,6 +360,7 @@ int main(){
         case GameState::PLAYING : {
 
             UpdatePlayer(camera, yaw, pitch, speed, sensitivity);
+            ChangeHotbarSlot(player);
             //HandleNoiseInput(world);
 
             int playerChunkX = (int)floor(camera.position.x / CHUNK_SIZE);
@@ -324,7 +383,7 @@ int main(){
                     SetBlock(world, worldBlockX, worldBlockY, worldBlockZ, Block::AIR);
 
                 if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
-                    SetBlock(world, placeX, placeY, placeZ, Block::LIGHT_STONE);
+                    SetBlock(world, placeX, placeY, placeZ, player.GetHeldItem());
             }
 
             //sunlight stuff
@@ -350,6 +409,7 @@ int main(){
                 if (IsKeyPressed(KEY_TAB)) showNoiseDebug = !showNoiseDebug;
                 if (IsKeyPressed(KEY_G)) showChunkBorders = ! showChunkBorders;
                 DrawHUD(world, camera, showNoiseDebug);
+                DrawHotbar(player);
             EndDrawing();
 
             break;

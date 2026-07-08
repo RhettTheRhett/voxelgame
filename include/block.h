@@ -1,5 +1,6 @@
 #pragma once
 #include "raylib.h"
+#include <cstdint>
 
  static const float FACE_VERTS[6][12] = {
     // +Y top
@@ -26,19 +27,9 @@
     };
 
 enum Block{
-        AIR, GRASS, DIRT, STONE, LIGHT_STONE
+        AIR, BEDROCK, GRASS, DIRT, STONE, LIGHT_STONE, WOOD, PLANKS, BRICK, SAND
 };
-/*struct BlockDefinition {
-        const char* BLOCK_NAME;
-        Color TOP_COLOR;
-        Color BOTTOM_COLOR;
-        Color FRONT_COLOR;
-        Color BACK_COLOR;
-        Color LEFT_COLOR;
-        Color RIGHT_COLOR;     
-        
-};
-*/
+
 
 struct BlockDefinition {
         const char* BLOCK_NAME;     
@@ -48,18 +39,17 @@ struct BlockDefinition {
 };
 
 
-//static Color BLOCK_COLORS[] = {{0,0,0,0}, {85, 125, 70, 255}, {131,101,57,255}, {146,142,133,255}};
-/*static BlockDefinition BLOCK_DEFINITIONS[] = {
-        {"AIR", {0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0}},
-        {"GRASS",  {85, 125, 70, 255}, {131,101,57,255}, {131,101,57,255}, {131,101,57,255}, {131,101,57,255}, {131,101,57,255},},
-        {"DIRT", {131,101,57,255}, {131,101,57,255}, {131,101,57,255}, {131,101,57,255}, {131,101,57,255}, {131,101,57,255},},
-        {"STONE", {146,142,133,255}, {146,142,133,255}, {146,142,133,255}, {146,142,133,255},{146,142,133,255}, {146,142,133,255}} 
-};*/
 
 static BlockDefinition BLOCK_DEFINITIONS[] = {
         {"AIR", {{},{},{},{},{},{}}, false, 0},
+        {"BEDROCK",{{15,15},{15,15},{15,15},{15,15},{15,15},{15,15},}, true, 2},
         {"GRASS",  {{0,0}, {1,0}, {0, 1}, {0, 1}, {0, 1}, {0, 1}}, false, 0},
         {"DIRT", {{1,0},{1,0},{1,0},{1,0},{1,0},{1,0}}, false, 0},
         {"STONE", {{2,0}, {2,0}, {2,0}, {2,0}, {2,0}, {2,0}}, false, 0},
-        {"LIGHT_STONE", {{1,1}, {1,1},{1,1},{1,1},{1,1},{1,1}}, true, 15}
+        {"LIGHT_STONE", {{1,1}, {1,1},{1,1},{1,1},{1,1},{1,1}}, true, 15},
+        {"WOOD", {{0,2}, {0,2}, {1,2},{1,2},{1,2},{1,2}}, false, 0},
+        {"PLANKS", {{0,3}, {0,3},{0,3},{0,3},{0,3},{0,3}}, false, 0},
+        {"BRICK", {{2,1}, {2,1}, {2,1},{2,1},{2,1},{2,1}}, false, 0},
+        {"SAND", {{2,2}, {2,2},{2,2},{2,2},{2,2},{2,2}}, false, 0},
 };
+

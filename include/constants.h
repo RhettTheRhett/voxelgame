@@ -12,3 +12,6 @@ inline constexpr float DAY_LENGTH_TICKS = 24000.0f;
 
 //Hotbar
 inline constexpr uint8_t HOTBAR_SIZE = 9;
+inline constexpr int SLOT_SIZE = 48;
+inline constexpr int SLOT_PADDING = 4;
+inline constexpr int BOTTOM_MARGIN = 20;

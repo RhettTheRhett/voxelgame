@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "player.h"
 
 
 
@@ -42,10 +43,5 @@ struct WorldManifest {
     uint8_t  cheatsEnabled;
     // v1.1.0 additions
     float timeOfDay;  // 0.0 to 24000.0, advances each frame
-};
-
-struct PlayerData {
-    float posX, posY, posZ;
-    float yaw, pitch;
 };
 

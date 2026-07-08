@@ -1,6 +1,7 @@
 #include"raycast.h"
 #include"world.h"
 #include "chunk.h"
+#include "block.h"
 
 RayHit RayCast(Ray ray, const World& world, float reachDistance){
     RayHit rayHit = {};
@@ -76,7 +77,7 @@ RayHit RayCast(Ray ray, const World& world, float reachDistance){
             rayHit.didHit = true;
             rayHit.distance = distance;
             rayHit.position = {(float)blockX, (float)blockY, (float)blockZ};
-            rayHit.hitType = HitType::Block;
+            rayHit.hitType = HitType::HIT_BLOCK;
             rayHit.faceHit = lastface;
             return rayHit;
         }

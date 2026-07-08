@@ -3,7 +3,7 @@
 #include "world.h"
 
 enum HitType{
-    Block, Entity, Player
+    HIT_BLOCK, HIT_ENTITY, HIT_PLAYER
 };
 
 enum Face{

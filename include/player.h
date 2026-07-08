@@ -16,9 +16,9 @@ class Player {
     void SelectSlot(uint8_t slot);
     void ScrollSlot(int direction);
 
-     Block GetHeldItem() const;
+    Block GetHeldItem() const;
     const PlayerData& GetData() const;
     
     private:
-    PlayerData playerData;
+    PlayerData playerData = {0,  {Block::DIRT, Block::GRASS, Block::STONE, Block::LIGHT_STONE, Block::WOOD, Block::PLANKS, Block::BRICK, Block::SAND, Block::BEDROCK}};
 };
