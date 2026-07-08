@@ -263,7 +263,7 @@ bool DrawButton(Rectangle rect, const char* label, int fontSize, Color buttonCol
     return false;
 }
 
-void DrawHotbar(const Player& player)
+void DrawHotbar(const Player& player, const Texture2D atlasTexture)
 {
     const int hotbarWidth = HOTBAR_SIZE * SLOT_SIZE + (HOTBAR_SIZE - 1) * SLOT_PADDING;
 
@@ -277,6 +277,27 @@ void DrawHotbar(const Player& player)
 
         // Draw slot background
         DrawRectangle(x, y, SLOT_SIZE, SLOT_SIZE, DARKGRAY);
+
+        int iconMargin = 4;
+
+        Block blockInSlot = player.GetData().blockSlot[i];  
+        BlockDefinition def = BLOCK_DEFINITIONS[blockInSlot];   
+        Vector2 faceTex = def.FACE_TEX[0]; 
+
+        Rectangle sourceRect = {
+            faceTex.x * TILE_SIZE,
+            faceTex.y * TILE_SIZE,
+            TILE_SIZE,
+            TILE_SIZE
+        };
+
+        Rectangle destRect = {
+            x + iconMargin,
+            y + iconMargin,
+            SLOT_SIZE - iconMargin * 2,
+            SLOT_SIZE - iconMargin * 2
+        };
+        DrawTexturePro(atlasTexture, sourceRect, destRect, {0,0}, 0.0f, WHITE);
 
         // Highlight selected slot
         Color borderColor = (i == player.GetData().currentSlot) ? YELLOW : LIGHTGRAY;
@@ -409,7 +430,7 @@ int main(){
                 if (IsKeyPressed(KEY_TAB)) showNoiseDebug = !showNoiseDebug;
                 if (IsKeyPressed(KEY_G)) showChunkBorders = ! showChunkBorders;
                 DrawHUD(world, camera, showNoiseDebug);
-                DrawHotbar(player);
+                DrawHotbar(player, atlas);
             EndDrawing();
 
             break;

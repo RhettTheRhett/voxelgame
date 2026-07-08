@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "constants.h"
 #include "player.h"
 
 
@@ -13,11 +14,7 @@
 // relevant version field instead.
 // ============================================================
 
-inline constexpr uint8_t WORLD_VERSION_MAJOR = 1;
-inline constexpr uint8_t WORLD_VERSION_MINOR = 1;
-inline constexpr uint8_t WORLD_VERSION_PATCH = 0;
 
-inline constexpr uint32_t WORLD_FILE_SIGNATURE = 0x564F4C44;
 
 
 struct ChunkHeader {
