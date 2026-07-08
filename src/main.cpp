@@ -285,18 +285,19 @@ void DrawHotbar(const Player& player, const Texture2D atlasTexture)
         Vector2 faceTex = def.FACE_TEX[0]; 
 
         Rectangle sourceRect = {
-            faceTex.x * TILE_SIZE,
-            faceTex.y * TILE_SIZE,
-            TILE_SIZE,
-            TILE_SIZE
+            (float)(faceTex.x * TILE_SIZE),
+            (float)(faceTex.y * TILE_SIZE),
+            (float)(TILE_SIZE),
+            (float)(TILE_SIZE)
         };
 
         Rectangle destRect = {
-            x + iconMargin,
-            y + iconMargin,
-            SLOT_SIZE - iconMargin * 2,
-            SLOT_SIZE - iconMargin * 2
+            (float)(x + iconMargin),
+            (float)(y + iconMargin),
+            (float)(SLOT_SIZE - iconMargin * 2),
+            (float)(SLOT_SIZE - iconMargin * 2)
         };
+
         DrawTexturePro(atlasTexture, sourceRect, destRect, {0,0}, 0.0f, WHITE);
 
         // Highlight selected slot
