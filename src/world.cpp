@@ -22,17 +22,19 @@ void GenerateWorld(World& world, int renderDistance, int playerChunkX, int playe
             else if(std::filesystem::exists(chunkPath)){
                 //Chunk chunk = {};
                 LoadChunk(chunk, coord.x, coord.z, chunkPath);
+                world.chunks[coord] = chunk;   
                 PropagateSunlight(world, coord.x, coord.z);
                 PropagateBlockLight(world, coord.x, coord.z);
                 
-                world.chunks[coord] = chunk;                
+                             
             }else{
             // call GenerateChunk with world noise params
             GenerateChunk(chunk, coord.x, coord.z, world.noiseScale, world.noiseOctaves, world.noisePersistence);
             // insert it into world.chunks
+            world.chunks[coord] = chunk;
             PropagateSunlight(world, coord.x, coord.z);
             PropagateBlockLight(world, coord.x, coord.z);
-            world.chunks[coord] = chunk; 
+             
             }
            
         }
