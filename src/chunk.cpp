@@ -21,6 +21,38 @@ bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBloc
     return chunk.blocks[localX][worldBlockY][localZ] != Block::AIR; 
 }
 
+static uint8_t GetSunLight(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
+{
+    if (worldBlockY < 0 || worldBlockY >= CHUNK_HEIGHT) return 0;
+
+    int chunkX = (int)floor(worldBlockX / (float)CHUNK_SIZE);
+    int chunkZ = (int)floor(worldBlockZ / (float)CHUNK_SIZE);
+    int localX = worldBlockX - chunkX * CHUNK_SIZE;
+    int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
+
+    ChunkCoord coord = { chunkX, chunkZ };
+    if (world.chunks.count(coord) == 0) return 0;
+    const Chunk& chunk = world.chunks.at(coord);
+
+    return chunk.sunLight[localX][worldBlockY][localZ];
+}
+
+static uint8_t GetBlockLight(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
+{
+    if (worldBlockY < 0 || worldBlockY >= CHUNK_HEIGHT) return 0;
+
+    int chunkX = (int)floor(worldBlockX / (float)CHUNK_SIZE);
+    int chunkZ = (int)floor(worldBlockZ / (float)CHUNK_SIZE);
+    int localX = worldBlockX - chunkX * CHUNK_SIZE;
+    int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
+
+    ChunkCoord coord = { chunkX, chunkZ };
+    if (world.chunks.count(coord) == 0) return 0;
+    const Chunk& chunk = world.chunks.at(coord);
+
+    return chunk.blockLight[localX][worldBlockY][localZ];
+}
+
 Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chunkZ){
 
     // 1. constants and tables (FACE_VERTS, FACE_DIRS)
@@ -107,12 +139,24 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
 
                     const float MIN_LIGHT = 0.15f;
 
+                    // Sample light from adjacent air block (visible face neighbor)
+                    uint8_t neighborSun, neighborBlock;
+                    if (nx >= 0 && nx < CHUNK_SIZE &&
+                        ny >= 0 && ny < CHUNK_HEIGHT &&
+                        nz >= 0 && nz < CHUNK_SIZE) {
+                        neighborSun   = chunk.sunLight[nx][ny][nz];
+                        neighborBlock = chunk.blockLight[nx][ny][nz];
+                    } else {
+                        neighborSun   = GetSunLight(world, worldX, worldY, worldZ);
+                        neighborBlock = GetBlockLight(world, worldX, worldY, worldZ);
+                    }
+
                     // Sunlight -> drives RGB, gets scaled by sunBrightness uniform later
-                    float sunFactor = MIN_LIGHT + (1.0f - MIN_LIGHT) * (chunk.sunLight[x][y][z] / 15.0f);
+                    float sunFactor = MIN_LIGHT + (1.0f - MIN_LIGHT) * (neighborSun / 15.0f);
                     unsigned char sunShade = (unsigned char)(shade * sunFactor);
 
                     // Block light -> drives alpha, immune to sunBrightness
-                    float blockFactor = chunk.blockLight[x][y][z] / 15.0f;
+                    float blockFactor = neighborBlock / 15.0f;
                     unsigned char blockShade = (unsigned char)(255 * blockFactor);
 
                     for (int v = 0; v < 4; v++)
@@ -251,6 +295,7 @@ void GenerateChunk(Chunk& chunk,int chunkX,int chunkZ, float scale,int octaves,f
                     chunk.blocks[x][y][z] = Block::AIR;
                     continue;
                 }
+                
 
                 
                 float rawX = chunkX * CHUNK_SIZE + x;
@@ -282,6 +327,10 @@ void GenerateChunk(Chunk& chunk,int chunkX,int chunkZ, float scale,int octaves,f
                         chunk.blocks[x][y][z] = Block::STONE;
 
                     } 
+                }
+                if (y == 0){
+                    chunk.blocks[x][y][z] = Block::BEDROCK;
+                    continue;
                 }
                     
             }
@@ -343,9 +392,9 @@ void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChun
             int nx = node.worldX + d[0];
             int ny = node.worldY + d[1];
             int nz = node.worldZ + d[2];
-            uint8_t newLevel = node.level - 1;
+            if (node.level <= 1) continue;
 
-            if (newLevel <= 0) continue;
+            uint8_t newLevel = node.level - 1;
             if (ny < 0 || ny >= CHUNK_HEIGHT) continue;
 
             int nChunkX = (int)floor(nx / (float)CHUNK_SIZE);
@@ -385,6 +434,7 @@ void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedCh
                         int worldZ = coord.z * CHUNK_SIZE + z;
                         chunk.blockLight[x][y][z] = BLOCK_DEFINITIONS[b].lightLevel;
                         queue.push({worldX, y, worldZ, BLOCK_DEFINITIONS[b].lightLevel});
+                        //printf("Seeding light at %d %d %d level %d\n", worldX, y, worldZ, BLOCK_DEFINITIONS[b].lightLevel);
                     }
                 }
     }
@@ -414,12 +464,18 @@ void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedCh
             int lx = nx - nChunkX * CHUNK_SIZE;
             int lz = nz - nChunkZ * CHUNK_SIZE;
 
-            if (BLOCK_DEFINITIONS[(Block)nChunk.blocks[lx][ny][lz]].isLightSource) continue;
+            //if (BLOCK_DEFINITIONS[(Block)nChunk.blocks[lx][ny][lz]].isLightSource) continue;
+            //printf("Trying to spread from %d %d %d (level %d) to %d %d %d\n", node.worldX, node.worldY, node.worldZ, node.level, nx, ny, nz);
+            //if (IsSolid(world, nx, ny, nz)) continue;
             if (nChunk.blockLight[lx][ny][lz] >= newLevel) continue;
+            
+            
 
             nChunk.blockLight[lx][ny][lz] = newLevel;
             nChunk.meshDirty = true;
-            queue.push({nx, ny, nz, newLevel});
+            if (!IsSolid(world, nx, ny, nz)) {
+                queue.push({nx, ny, nz, newLevel});
+            }
         }
     }
 }

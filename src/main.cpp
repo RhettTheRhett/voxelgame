@@ -333,7 +333,7 @@ int main(){
     float pitch = 0.0f;
     float speed  = 15.0f;
     float sensitivity = 0.1f;
-    float renderDistance = 4;
+    float renderDistance = 1;
     bool showNoiseDebug = false;
     bool showChunkBorders = false; 
 
@@ -430,6 +430,7 @@ int main(){
                 EndMode3D();
                 if (IsKeyPressed(KEY_TAB)) showNoiseDebug = !showNoiseDebug;
                 if (IsKeyPressed(KEY_G)) showChunkBorders = ! showChunkBorders;
+                if (IsKeyPressed(KEY_GRAVE)) world.manifest.timeOfDay += 1000;
                 DrawHUD(world, camera, showNoiseDebug);
                 DrawHotbar(player, atlas);
             EndDrawing();

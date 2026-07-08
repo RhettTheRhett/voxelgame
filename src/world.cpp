@@ -79,10 +79,10 @@ void UnloadDistantChunks(World& world, int playerChunkX, int playerChunkZ, int r
     
     for (auto& coord : toErase) {
         Chunk& chunk = world.chunks.at(coord);
-        printf("Unloading chunk %d, %d - needsSaving=%d\n", coord.x, coord.z, chunk.needsSaving);
+        //printf("Unloading chunk %d, %d - needsSaving=%d\n", coord.x, coord.z, chunk.needsSaving);
         if (chunk.needsSaving) {
             std::string chunkPath = GetChunkFilePath(CHUNK_PATH, coord.x, coord.z);
-            printf("Saving chunk %d, %d to %s\n", coord.x, coord.z, chunkPath.c_str());
+            //printf("Saving chunk %d, %d to %s\n", coord.x, coord.z, chunkPath.c_str());
             SaveChunk(chunk, coord.x, coord.z, chunkPath);
         }
         UnloadMesh(chunk.mesh);
