@@ -1,6 +1,10 @@
 #include "raylib.h"
 #include "player.h"
 
+Vector3 position;
+Vector3 velocity;
+
+bool onGround;
 
 void Player::SelectSlot(uint8_t slot){
     playerData.currentSlot = slot % HOTBAR_SIZE;

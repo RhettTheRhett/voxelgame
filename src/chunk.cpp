@@ -167,7 +167,7 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                         mesh.colors[colorCursor++] = blockShade; // A -- now carries block light, not transparency
                     }
 
-                    Vector2 tileCoord = BLOCK_DEFINITIONS[blockType].FACE_TEX[f];
+                    Vector2 tileCoord = GetBlockDef(blockType).FACE_TEX[f];
                     float u0 = tileCoord.x * ATLAS_TILE_SIZE;
                     float v0 = tileCoord.y * ATLAS_TILE_SIZE;
                     float u1 = u0 + ATLAS_TILE_SIZE;
@@ -407,7 +407,7 @@ void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChun
             int lx = nx - nChunkX * CHUNK_SIZE;
             int lz = nz - nChunkZ * CHUNK_SIZE;
 
-            if (BLOCK_DEFINITIONS[(Block)nChunk.blocks[lx][ny][lz]].isLightSource) continue;
+            if (GetBlockDef(nChunk.blocks[lx][ny][lz]).isLightSource) continue;
             if (nChunk.sunLight[lx][ny][lz] >= newLevel) continue;
 
             nChunk.sunLight[lx][ny][lz] = newLevel;
@@ -428,13 +428,14 @@ void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedCh
         for (int x = 0; x < CHUNK_SIZE; x++)
             for (int y = 0; y < CHUNK_HEIGHT; y++)
                 for (int z = 0; z < CHUNK_SIZE; z++) {
-                    Block b = (Block)chunk.blocks[x][y][z];
-                    if (BLOCK_DEFINITIONS[b].isLightSource) {
+                    BlockId b = chunk.blocks[x][y][z];
+                    const BlockDefinition& def = GetBlockDef(b);
+                    if (def.isLightSource) {
                         int worldX = coord.x * CHUNK_SIZE + x;
                         int worldZ = coord.z * CHUNK_SIZE + z;
-                        chunk.blockLight[x][y][z] = BLOCK_DEFINITIONS[b].lightLevel;
-                        queue.push({worldX, y, worldZ, BLOCK_DEFINITIONS[b].lightLevel});
-                        //printf("Seeding light at %d %d %d level %d\n", worldX, y, worldZ, BLOCK_DEFINITIONS[b].lightLevel);
+                        chunk.blockLight[x][y][z] = def.lightLevel;
+                        queue.push({worldX, y, worldZ, def.lightLevel});
+                        //printf("Seeding light at %d %d %d level %d\n", worldX, y, worldZ, def.lightLevel);
                     }
                 }
     }
@@ -464,7 +465,7 @@ void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedCh
             int lx = nx - nChunkX * CHUNK_SIZE;
             int lz = nz - nChunkZ * CHUNK_SIZE;
 
-            //if (BLOCK_DEFINITIONS[(Block)nChunk.blocks[lx][ny][lz]].isLightSource) continue;
+            //if (GetBlockDef(nChunk.blocks[lx][ny][lz]).isLightSource) continue;
             //printf("Trying to spread from %d %d %d (level %d) to %d %d %d\n", node.worldX, node.worldY, node.worldZ, node.level, nx, ny, nz);
             //if (IsSolid(world, nx, ny, nz)) continue;
             if (nChunk.blockLight[lx][ny][lz] >= newLevel) continue;

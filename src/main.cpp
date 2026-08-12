@@ -280,9 +280,9 @@ void DrawHotbar(const Player& player, const Texture2D atlasTexture)
 
         int iconMargin = 4;
 
-        Block blockInSlot = player.GetData().blockSlot[i];  
-        BlockDefinition def = BLOCK_DEFINITIONS[blockInSlot];   
-        Vector2 faceTex = def.FACE_TEX[0]; 
+        Block blockInSlot = player.GetData().blockSlot[i];
+        const BlockDefinition& def = GetBlockDef(blockInSlot);
+        Vector2 faceTex = def.FACE_TEX[0];
 
         Rectangle sourceRect = {
             (float)(faceTex.x * TILE_SIZE),
@@ -315,6 +315,7 @@ void AdvanceTime(float deltaTime, World& world){
 
 int main(){
     ChangeDirectory(GetApplicationDirectory());
+    InitBlockRegistry();
     std::filesystem::create_directories("saves/world/chunks");
     GameState state = GameState::MENU;
     InitWindow(1080, 720, "Voxel Game");

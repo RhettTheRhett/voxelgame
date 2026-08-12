@@ -26,30 +26,41 @@
     {  0,  0, -1 },  // -Z
     };
 
-enum Block{
-        AIR, BEDROCK, GRASS, DIRT, STONE, LIGHT_STONE, WOOD, PLANKS, BRICK, SAND
-};
+// Numeric id stored in chunks / hotbar. Same values as registry indices for builtins.
+using BlockId = uint16_t;
 
+// Thin aliases for call-site convenience. Source of truth for *identity* is contentId
+// ("game:stone"); these ordinals are remappable later via a save palette (deferred).
+enum Block : BlockId {
+    AIR = 0,
+    BEDROCK,
+    GRASS,
+    DIRT,
+    STONE,
+    LIGHT_STONE,
+    WOOD,
+    PLANKS,
+    BRICK,
+    SAND,
+};
 
 struct BlockDefinition {
-        const char* BLOCK_NAME;     
-        Vector2 FACE_TEX[6];
-        bool isLightSource;
-        uint8_t lightLevel;  
+    const char* contentId;   // stable namespaced id, e.g. "game:stone"
+    Vector2 FACE_TEX[6];
+    bool isLightSource;
+    uint8_t lightLevel;
 };
 
+// Call once at startup before any GetBlockDef / TryGetBlockId use.
+void InitBlockRegistry();
 
+// Hot path: O(1) array index by numeric id. Mesh/light/UI should use this.
+const BlockDefinition& GetBlockDef(BlockId id);
 
-static BlockDefinition BLOCK_DEFINITIONS[] = {
-        {"AIR", {{},{},{},{},{},{}}, false, 0},
-        {"BEDROCK",{{15,15},{15,15},{15,15},{15,15},{15,15},{15,15},}, false, 0},
-        {"GRASS",  {{0,0}, {1,0}, {0, 1}, {0, 1}, {0, 1}, {0, 1}}, false, 0},
-        {"DIRT", {{1,0},{1,0},{1,0},{1,0},{1,0},{1,0}}, false, 0},
-        {"STONE", {{2,0}, {2,0}, {2,0}, {2,0}, {2,0}, {2,0}}, false, 0},
-        {"LIGHT_STONE", {{1,1}, {1,1},{1,1},{1,1},{1,1},{1,1}}, true, 15},
-        {"WOOD", {{0,2}, {0,2}, {1,2},{1,2},{1,2},{1,2}}, false, 0},
-        {"PLANKS", {{0,3}, {0,3},{0,3},{0,3},{0,3},{0,3}}, false, 0},
-        {"BRICK", {{2,1}, {2,1}, {2,1},{2,1},{2,1},{2,1}}, false, 0},
-        {"SAND", {{2,2}, {2,2},{2,2},{2,2},{2,2},{2,2}}, false, 0},
-};
+// Cold path: string lookup (load/register/commands). Not per-voxel.
+bool TryGetBlockId(const char* contentId, BlockId& outId);
 
+BlockId GetBlockCount();
+
+// Growable registration. contentId must outlive the registry (string literal OK).
+BlockId RegisterBlock(const BlockDefinition& def);
