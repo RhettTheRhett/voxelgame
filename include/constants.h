@@ -31,3 +31,12 @@ inline constexpr uint32_t WORLD_FILE_SIGNATURE = 0x564F4C44;
 inline constexpr float PLAYER_HEIGHT = 1.8f;
 inline constexpr float PLAYER_WIDTH = 0.6f;
 inline constexpr float PLAYER_EYE_HEIGHT = 1.5f;
+
+inline constexpr float PLAYER_GRAVITY = 28.0f;
+inline constexpr float PLAYER_TERMINAL_VELOCITY = 50.0f;
+
+inline constexpr float PLAYER_JUMP_HEIGHT = 1.25f;
+inline constexpr float PLAYER_JUMP_SPEED  = 8.37f;  // sqrt(2 * PLAYER_GRAVITY * PLAYER_JUMP_HEIGHT)
+
+inline constexpr float PLAYER_MOVE_SPEED = 5.5f;
+inline constexpr float PLAYER_DEBUG_EYE_Y = 80.0f;

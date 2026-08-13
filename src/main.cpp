@@ -33,35 +33,13 @@ void HandleNoiseInput(World& world) {
     //if (IsKeyPressed(KEY_B))     { world.seed--; regen(); }
 }
 
-void UpdatePlayer(Camera3D& camera, float& yaw, float& pitch, float speed, float sensitivity) {
+void UpdatePlayerLook(float& yaw, float& pitch, float sensitivity) {
     Vector2 delta = GetMouseDelta();
     yaw   += delta.x * sensitivity;
     pitch += delta.y * sensitivity * -1;
 
     if (pitch >  89.0f) pitch =  89.0f;
     if (pitch < -89.0f) pitch = -89.0f;
-
-    float pitchRad = pitch * DEG2RAD;
-    float yawRad   = yaw   * DEG2RAD;
-
-    Vector3 forward;
-    forward.x = cosf(pitchRad) * cosf(yawRad);
-    forward.y = sinf(pitchRad);
-    forward.z = cosf(pitchRad) * sinf(yawRad);
-
-    Vector3 moveForward = {cosf(yawRad), 0, sinf(yawRad)};
-    Vector3 moveSide    = {cosf(yawRad + 90.0f * DEG2RAD), 0, sinf(yawRad + 90.0f * DEG2RAD)};
-
-    float dt = GetFrameTime();
-    if (IsKeyDown(KEY_W)) camera.position += moveForward * speed * dt;
-    if (IsKeyDown(KEY_S)) camera.position -= moveForward * speed * dt;
-    if (IsKeyDown(KEY_A)) camera.position -= moveSide    * speed * dt;
-    if (IsKeyDown(KEY_D)) camera.position += moveSide    * speed * dt;
-    if (IsKeyDown(KEY_SPACE))        camera.position.y += speed * dt;
-    if (IsKeyDown(KEY_LEFT_CONTROL)) camera.position.y -= speed * dt;
-    
-
-    camera.target = camera.position + forward;
 }
 
 void ChangeHotbarSlot(Player& player){
@@ -186,7 +164,7 @@ bool StartNewWorld(World& world, Camera3D& camera, std::string path) {
     manifest.worldCreationTime = nowSeconds;
 
     manifest.spawnX = 0;
-    manifest.spawnY = 0;
+    manifest.spawnY = 80;
     manifest.spawnZ = 0;
 
     SetNoiseSeed(manifest.seed);
@@ -335,7 +313,6 @@ int main(){
 
     float yaw = -90.0f;
     float pitch = 0.0f;
-    float speed  = 15.0f;
     float sensitivity = 0.1f;
     float renderDistance = 1;
     bool showNoiseDebug = false;
@@ -364,7 +341,8 @@ int main(){
             BeginDrawing();
             if(DrawButton(newWorldButton, "New World", 16, BROWN, LIGHTGRAY)){
                 if(StartNewWorld(world,camera,CHUNK_PATH)){
-                   state = GameState::PLAYING;
+                    state = GameState::PLAYING;
+                    player.SetPositionFromEye(camera.position);
                     DisableCursor(); 
                 }
                 
@@ -372,7 +350,8 @@ int main(){
             if (std::filesystem::exists("saves/world/world.dat")) {
              if (DrawButton(continueButton, "Continue", 16, BROWN, LIGHTGRAY)){
                     if(ContinueWorld(world, camera, CHUNK_PATH)){
-                     state = GameState::PLAYING;
+                        state = GameState::PLAYING;
+                        player.SetPositionFromEye(camera.position);
                         DisableCursor();    
                     }
                 }
@@ -385,7 +364,13 @@ int main(){
         // PLAYING
         case GameState::PLAYING : {
 
-            UpdatePlayer(camera, yaw, pitch, speed, sensitivity);
+            float dt = GetFrameTime();
+            UpdatePlayerLook(yaw, pitch, sensitivity);
+            player.ApplyInput(yaw, dt);
+            player.ApplyDebugInput();
+            player.UpdatePhysics(world, dt);
+            player.SyncCamera(camera, yaw, pitch);
+            
             ChangeHotbarSlot(player);
             //HandleNoiseInput(world);
 
@@ -421,6 +406,8 @@ int main(){
                 ClearBackground(CalculateSkyColor(world.manifest.timeOfDay));
                 BeginMode3D(camera);
                     DrawWorld(world, mat);
+                    
+                    DrawBoundingBox(player.GetBounds(), GREEN);
                     if (hit.didHit) {
                         DrawCubeWires(
                             {hit.position.x + 0.5f, hit.position.y + 0.5f, hit.position.z + 0.5f},
