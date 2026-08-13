@@ -52,6 +52,7 @@ void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octave
 
 void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChunks);
 void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks);
+void PropagateBlockLightOnChunkLoad(World& world, int chunkX, int chunkZ);
 void ClearBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks);
 
 std::vector<ChunkCoord> GetAffectedChunks(int chunkX, int chunkZ);

@@ -319,6 +319,9 @@ int main(){
     std::filesystem::create_directories("saves/world/chunks");
     GameState state = GameState::MENU;
     InitWindow(1080, 720, "Voxel Game");
+
+    SetTraceLogLevel(LOG_WARNING);  // or LOG_ERROR to hide warnings too
+
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
 

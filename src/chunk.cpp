@@ -417,11 +417,8 @@ void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChun
     }
 
 }
-void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks) {
-    std::queue<LightNode> queue;
-
-    // seed from every light source in every affected chunk
-    for (const ChunkCoord& coord : affectedChunks) {
+static void SeedBlockLightSources(World& world, const std::vector<ChunkCoord>& chunks, std::queue<LightNode>& queue) {
+    for (const ChunkCoord& coord : chunks) {
         if (!world.chunks.count(coord)) continue;
         Chunk& chunk = world.chunks.at(coord);
 
@@ -435,12 +432,64 @@ void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedCh
                         int worldZ = coord.z * CHUNK_SIZE + z;
                         chunk.blockLight[x][y][z] = def.lightLevel;
                         queue.push({worldX, y, worldZ, def.lightLevel});
-                        //printf("Seeding light at %d %d %d level %d\n", worldX, y, worldZ, def.lightLevel);
                     }
                 }
     }
+}
 
-    // BFS spread 
+static void SeedBlockLightFromAdjacentChunks(World& world, int chunkX, int chunkZ, std::queue<LightNode>& queue) {
+    static const int neighborOffsets[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+
+    for (auto& off : neighborOffsets) {
+        ChunkCoord nCoord = {chunkX + off[0], chunkZ + off[1]};
+        if (!world.chunks.count(nCoord)) continue;
+        Chunk& nChunk = world.chunks.at(nCoord);
+
+        if (off[0] == -1) {
+            int worldX = nCoord.x * CHUNK_SIZE + (CHUNK_SIZE - 1);
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+                for (int z = 0; z < CHUNK_SIZE; z++) {
+                    uint8_t level = nChunk.blockLight[CHUNK_SIZE - 1][y][z];
+                    if (level == 0) continue;
+                    int worldZ = nCoord.z * CHUNK_SIZE + z;
+                    if (!IsSolid(world, worldX, y, worldZ))
+                        queue.push({worldX, y, worldZ, level});
+                }
+        } else if (off[0] == 1) {
+            int worldX = nCoord.x * CHUNK_SIZE;
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+                for (int z = 0; z < CHUNK_SIZE; z++) {
+                    uint8_t level = nChunk.blockLight[0][y][z];
+                    if (level == 0) continue;
+                    int worldZ = nCoord.z * CHUNK_SIZE + z;
+                    if (!IsSolid(world, worldX, y, worldZ))
+                        queue.push({worldX, y, worldZ, level});
+                }
+        } else if (off[1] == -1) {
+            int worldZ = nCoord.z * CHUNK_SIZE + (CHUNK_SIZE - 1);
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+                for (int x = 0; x < CHUNK_SIZE; x++) {
+                    uint8_t level = nChunk.blockLight[x][y][CHUNK_SIZE - 1];
+                    if (level == 0) continue;
+                    int worldX = nCoord.x * CHUNK_SIZE + x;
+                    if (!IsSolid(world, worldX, y, worldZ))
+                        queue.push({worldX, y, worldZ, level});
+                }
+        } else if (off[1] == 1) {
+            int worldZ = nCoord.z * CHUNK_SIZE;
+            for (int y = 0; y < CHUNK_HEIGHT; y++)
+                for (int x = 0; x < CHUNK_SIZE; x++) {
+                    uint8_t level = nChunk.blockLight[x][y][0];
+                    if (level == 0) continue;
+                    int worldX = nCoord.x * CHUNK_SIZE + x;
+                    if (!IsSolid(world, worldX, y, worldZ))
+                        queue.push({worldX, y, worldZ, level});
+                }
+        }
+    }
+}
+
+static void SpreadBlockLightBFS(World& world, std::queue<LightNode>& queue) {
     while (!queue.empty()) {
         LightNode node = queue.front();
         queue.pop();
@@ -465,12 +514,7 @@ void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedCh
             int lx = nx - nChunkX * CHUNK_SIZE;
             int lz = nz - nChunkZ * CHUNK_SIZE;
 
-            //if (GetBlockDef(nChunk.blocks[lx][ny][lz]).isLightSource) continue;
-            //printf("Trying to spread from %d %d %d (level %d) to %d %d %d\n", node.worldX, node.worldY, node.worldZ, node.level, nx, ny, nz);
-            //if (IsSolid(world, nx, ny, nz)) continue;
             if (nChunk.blockLight[lx][ny][lz] >= newLevel) continue;
-            
-            
 
             nChunk.blockLight[lx][ny][lz] = newLevel;
             nChunk.meshDirty = true;
@@ -479,6 +523,27 @@ void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedCh
             }
         }
     }
+}
+
+void PropagateBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks) {
+    std::queue<LightNode> queue;
+    SeedBlockLightSources(world, affectedChunks, queue);
+    SpreadBlockLightBFS(world, queue);
+}
+
+void PropagateBlockLightOnChunkLoad(World& world, int chunkX, int chunkZ) {
+    ChunkCoord loaded = {chunkX, chunkZ};
+    if (!world.chunks.count(loaded)) return;
+
+    ClearBlockLight(world, {loaded});
+
+    std::queue<LightNode> queue;
+    auto affected = GetAffectedChunks(chunkX, chunkZ);
+    SeedBlockLightSources(world, affected, queue);
+    SeedBlockLightFromAdjacentChunks(world, chunkX, chunkZ, queue);
+    SpreadBlockLightBFS(world, queue);
+
+    world.chunks.at(loaded).meshDirty = true;
 }
 
 void ClearBlockLight(World& world, const std::vector<ChunkCoord>& affectedChunks) {

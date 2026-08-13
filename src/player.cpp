@@ -1,11 +1,6 @@
 #include "raylib.h"
 #include "player.h"
 
-Vector3 position;
-Vector3 velocity;
-
-bool onGround;
-
 void Player::SelectSlot(uint8_t slot){
     playerData.currentSlot = slot % HOTBAR_SIZE;
 }
@@ -27,3 +22,24 @@ const PlayerData& Player::GetData() const {
     return playerData;
 }
 
+Vector3 Player::GetPosition() const {
+    return position;
+}
+
+Vector3 Player::GetEyePosition() const {
+    return { position.x, position.y + PLAYER_EYE_HEIGHT, position.z };
+}
+BoundingBox Player::GetBounds() const {
+    float half = PLAYER_WIDTH * 0.5f;
+
+    BoundingBox box;
+    box.min = { position.x - half,  position.y, position.z - half  };
+    box.max = { position.x + half,  position.y + PLAYER_HEIGHT, position.z + half };
+    return box;
+}
+
+void Player::SetPositionFromEye(Vector3 eye) {
+    position.x = eye.x;
+    position.y = eye.y - PLAYER_EYE_HEIGHT;
+    position.z = eye.z;
+}
