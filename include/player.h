@@ -8,6 +8,7 @@
 #include <array>
 
 struct World;
+struct GameSettings;
 
 struct PlayerData {
     uint8_t currentSlot;
@@ -29,7 +30,7 @@ class Player {
     BoundingBox GetBounds() const;
 
     void SetPositionFromEye(Vector3 eye);
-    void ApplyInput(float yaw, float deltaTime);
+    void ApplyInput(float yaw, float deltaTime, const GameSettings& settings);
     void ApplyDebugInput();
     void UpdatePhysics(World& world, float deltaTime);
     void SyncCamera(Camera3D& camera, float yaw, float pitch) const;
@@ -45,7 +46,7 @@ class Player {
     void TryConsumeJumpBuffer();
     bool TryStepUp(const World& world, float desiredStep);
 
-    void ResolveCollisionsY(const World& world);
+    void ResolveCollisionsY(const World& world, float prevFeetY);
     void ResolveCollisionsX(const World& world);
     void ResolveCollisionsZ(const World& world);
 

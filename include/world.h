@@ -18,4 +18,5 @@ struct World {
 void GenerateWorld(World& world, int renderDistance, int playerChunkX, int playerChunkZ);
 void DrawWorld(World& world, Material& mat);
 void UnloadDistantChunks(World& world, int playerChunkX, int playerChunkZ, int renderDistance);
+void UnloadAllChunks(World& world);
 void SetBlock(World& world, int worldX, int worldY, int worldZ, BlockId type);

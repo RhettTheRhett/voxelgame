@@ -39,10 +39,6 @@ void DrawWorld(World& world, Material& mat){
     // pass 1 — build all dirty meshes first
     for (auto& [coord, chunk] : world.chunks) {
         if (chunk.meshDirty) {
-            if (chunk.meshDirty) {
-                //TraceLog(LOG_INFO, "Building mesh for chunk %d, %d", coord.x, coord.z);
-
-            }
             if (chunk.mesh.vaoId != 0) UnloadMesh(chunk.mesh);
             chunk.mesh = BuildChunkMesh(chunk, world, coord.x, coord.z);
             chunk.meshDirty = false;
@@ -84,14 +80,24 @@ void UnloadDistantChunks(World& world, int playerChunkX, int playerChunkZ, int r
     }
 }
 
-void SetBlock(World& world, int worldX, int worldY, int worldZ, BlockId type) {
-    int chunkX = (int)floor(worldX / (float)CHUNK_SIZE);
-    int chunkZ = (int)floor(worldZ / (float)CHUNK_SIZE);
-    int localX = worldX - chunkX * CHUNK_SIZE;
-    int localZ = worldZ - chunkZ * CHUNK_SIZE;
+void UnloadAllChunks(World& world) {
+    for (auto& [coord, chunk] : world.chunks) {
+        if (chunk.mesh.vaoId != 0) {
+            UnloadMesh(chunk.mesh);
+        }
+    }
+    world.chunks.clear();
+}
 
-    ChunkCoord coord = { chunkX, chunkZ };
-    auto affected = GetAffectedChunks(chunkX, chunkZ);
+void SetBlock(World& world, int worldX, int worldY, int worldZ, BlockId type) {
+    ChunkCoord coord{};
+    int localX = 0, localZ = 0;
+    if (!WorldToChunkLocal(worldX, worldY, worldZ, coord, localX, localZ)) {
+        return;
+    }
+    if (world.chunks.count(coord) == 0) return;
+
+    auto affected = GetAffectedChunks(coord.x, coord.z);
 
     world.chunks.at(coord).blocks[localX][worldY][localZ] = type;
     world.chunks.at(coord).needsSaving = true;

@@ -46,3 +46,8 @@ inline constexpr float PLAYER_JUMP_BUFFER = 0.12f;
 inline constexpr float PLAYER_STEP_HEIGHT = 0.5f;
 
 inline constexpr float PLAYER_DEBUG_EYE_Y = 80.0f;
+
+// Default runtime settings (pause menu / GameSettings)
+inline constexpr float DEFAULT_MOUSE_SENSITIVITY = 0.1f;
+inline constexpr int   DEFAULT_RENDER_DISTANCE   = 6;
+inline constexpr float DEFAULT_CAMERA_FOV        = 70.0f;

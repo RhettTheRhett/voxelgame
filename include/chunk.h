@@ -12,6 +12,28 @@ struct World;
 const int CHUNK_SIZE = 16;
 const int CHUNK_HEIGHT = 128;
 
+// Integer floor-div / positive-mod so world (16,z) is always chunk 1 local 0,
+// never local 16 (out of bounds — caused floor holes on chunk seams).
+inline int DivFloor(int a, int b) {
+    int q = a / b;
+    int r = a % b;
+    if (r != 0 && a < 0) q--;
+    return q;
+}
+inline int ModFloor(int a, int b) {
+    int r = a % b;
+    if (r < 0) r += b;
+    return r;
+}
+inline bool WorldToChunkLocal(int wx, int wy, int wz, ChunkCoord& coord, int& lx, int& lz) {
+    if (wy < 0 || wy >= CHUNK_HEIGHT) return false;
+    coord.x = DivFloor(wx, CHUNK_SIZE);
+    coord.z = DivFloor(wz, CHUNK_SIZE);
+    lx = ModFloor(wx, CHUNK_SIZE);
+    lz = ModFloor(wz, CHUNK_SIZE);
+    return true;
+}
+
 constexpr uint32_t CHUNK_FILE_SIGNATURE = 0x564F5843;
 constexpr uint8_t  CHUNK_FILE_VERSION = 1;
 

@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "player.h"
+#include "settings.h"
 #include "collision.h"
 #include "chunk.h"
 #include "world.h"
@@ -81,7 +82,7 @@ void Player::SetPositionFromEye(Vector3 eye) {
     position.z = eye.z;
 }
 
-void Player::ApplyInput(float yaw, float deltaTime) {
+void Player::ApplyInput(float yaw, float deltaTime, const GameSettings& settings) {
     float yawRad = yaw * DEG2RAD;
     Vector3 moveForward = { cosf(yawRad), 0.0f, sinf(yawRad) };
     Vector3 moveSide    = { cosf(yawRad + 90.0f * DEG2RAD), 0.0f, sinf(yawRad + 90.0f * DEG2RAD) };
@@ -89,19 +90,24 @@ void Player::ApplyInput(float yaw, float deltaTime) {
     velocity.x = 0.0f;
     velocity.z = 0.0f;
 
-    bool moving = IsKeyDown(KEY_W) || IsKeyDown(KEY_S) || IsKeyDown(KEY_A) || IsKeyDown(KEY_D);
+    bool moving =
+        IsKeyDown(settings.keyForward) ||
+        IsKeyDown(settings.keyBack) ||
+        IsKeyDown(settings.keyLeft) ||
+        IsKeyDown(settings.keyRight);
+
     float speed = PLAYER_MOVE_SPEED;
-    if (moving && IsKeyDown(KEY_LEFT_SHIFT)) {
+    if (moving && IsKeyDown(settings.keySprint)) {
         speed *= PLAYER_RUN_MULTIPLIER;
     }
 
-    if (IsKeyDown(KEY_W)) { velocity.x += moveForward.x * speed; velocity.z += moveForward.z * speed; }
-    if (IsKeyDown(KEY_S)) { velocity.x -= moveForward.x * speed; velocity.z -= moveForward.z * speed; }
-    if (IsKeyDown(KEY_A)) { velocity.x -= moveSide.x    * speed; velocity.z -= moveSide.z    * speed; }
-    if (IsKeyDown(KEY_D)) { velocity.x += moveSide.x    * speed; velocity.z += moveSide.z    * speed; }
+    if (IsKeyDown(settings.keyForward)) { velocity.x += moveForward.x * speed; velocity.z += moveForward.z * speed; }
+    if (IsKeyDown(settings.keyBack))    { velocity.x -= moveForward.x * speed; velocity.z -= moveForward.z * speed; }
+    if (IsKeyDown(settings.keyLeft))    { velocity.x -= moveSide.x    * speed; velocity.z -= moveSide.z    * speed; }
+    if (IsKeyDown(settings.keyRight))   { velocity.x += moveSide.x    * speed; velocity.z += moveSide.z    * speed; }
 
-    // Minecraft-style jump buffer: holding/tapping Space queues a jump until grounded.
-    if (IsKeyDown(KEY_SPACE)) {
+    // Minecraft-style jump buffer: holding/tapping jump queues until grounded.
+    if (IsKeyDown(settings.keyJump)) {
         jumpBufferTimer = PLAYER_JUMP_BUFFER;
     } else {
         jumpBufferTimer -= deltaTime;
@@ -134,6 +140,11 @@ void Player::UpdatePhysics(World& world, float deltaTime) {
     wasOnGround = onGround;
     onGround = false;
 
+    // Streaming a new ring of chunks can hitch; unclamped gravity then
+    // tunnels more than a block and discrete floor tests miss the surface.
+    constexpr float kMaxPhysicsDt = 1.0f / 20.0f;
+    if (deltaTime > kMaxPhysicsDt) deltaTime = kMaxPhysicsDt;
+
     if (!gravityPaused) {
         velocity.y -= PLAYER_GRAVITY * deltaTime;
         velocity.y = Clamp(velocity.y, -PLAYER_TERMINAL_VELOCITY, PLAYER_TERMINAL_VELOCITY);
@@ -141,15 +152,17 @@ void Player::UpdatePhysics(World& world, float deltaTime) {
         velocity.y = 0.0f;
     }
 
-    // Axis-separated: walls first (with step-up), ground last
+    // Y first so we snap to ground before walking — avoids moving XZ while
+    // intersecting the floor (which dropped the ground cell out of the Y loop).
+    float prevFeetY = position.y;
+    position.y += velocity.y * deltaTime;
+    ResolveCollisionsY(world, prevFeetY);
+
     position.x += velocity.x * deltaTime;
     ResolveCollisionsX(world);
     position.z += velocity.z * deltaTime;
     ResolveCollisionsZ(world);
-    position.y += velocity.y * deltaTime;
-    ResolveCollisionsY(world);
 
-    // Consume buffered jump after landing so hold-space auto-jumps without a frame of delay.
     TryConsumeJumpBuffer();
 }
 
@@ -217,8 +230,16 @@ bool Player::TryStepUp(const World& world, float desiredStep) {
     return true;
 }
 
+static float AxisOverlapX(const BoundingBox& a, const BoundingBox& b) {
+    return Overlap1D(a.min.x, a.max.x, b.min.x, b.max.x);
+}
+static float AxisOverlapZ(const BoundingBox& a, const BoundingBox& b) {
+    return Overlap1D(a.min.z, a.max.z, b.min.z, b.max.z);
+}
+
 void Player::ResolveCollisionsX(const World& world) {
     float half = PLAYER_WIDTH * 0.5f;
+    constexpr float kAxisEps = 0.001f;
 
     int minBX, maxBX, minBY, maxBY, minBZ, maxBZ;
     CollectOverlapRange(GetBounds(), minBX, maxBX, minBY, maxBY, minBZ, maxBZ);
@@ -233,9 +254,16 @@ void Player::ResolveCollisionsX(const World& world) {
                 if (!Overlaps(box, blockBox)) continue;
                 if (!IsWallOverlap(box, blockBox)) continue;
 
+                // Orthogonal walls (in front / behind) overlap XZ but are Z-hits.
+                // Resolving them on X shoves you sideways into the other wall at
+                // chunk corners. Only handle the shallower-X (primary X) face.
+                float ox = AxisOverlapX(box, blockBox);
+                float oz = AxisOverlapZ(box, blockBox);
+                if (ox > oz + kAxisEps) continue;
+
                 // Climb distance from current feet to this surface — works slab→full (0.5)
                 // and for inefficient staircases of many sub-step-height ledges.
-                if (wasOnGround && velocity.y <= 0.0f) {
+                if (onGround && velocity.y <= 0.0f) {
                     float step = blockBox.max.y - position.y;
                     if (TryStepUp(world, step)) {
                         box = GetBounds();
@@ -245,8 +273,9 @@ void Player::ResolveCollisionsX(const World& world) {
                     }
                 }
 
-                float blockCenterX = (float)bx + 0.5f;
-                if (position.x < blockCenterX) {
+                float penNeg = box.max.x - blockBox.min.x;
+                float penPos = blockBox.max.x - box.min.x;
+                if (penNeg < penPos) {
                     position.x = blockBox.min.x - half;
                 } else {
                     position.x = blockBox.max.x + half;
@@ -259,6 +288,7 @@ void Player::ResolveCollisionsX(const World& world) {
 
 void Player::ResolveCollisionsZ(const World& world) {
     float half = PLAYER_WIDTH * 0.5f;
+    constexpr float kAxisEps = 0.001f;
 
     int minBX, maxBX, minBY, maxBY, minBZ, maxBZ;
     CollectOverlapRange(GetBounds(), minBX, maxBX, minBY, maxBY, minBZ, maxBZ);
@@ -273,7 +303,11 @@ void Player::ResolveCollisionsZ(const World& world) {
                 if (!Overlaps(box, blockBox)) continue;
                 if (!IsWallOverlap(box, blockBox)) continue;
 
-                if (wasOnGround && velocity.y <= 0.0f) {
+                float ox = AxisOverlapX(box, blockBox);
+                float oz = AxisOverlapZ(box, blockBox);
+                if (oz > ox + kAxisEps) continue;
+
+                if (onGround && velocity.y <= 0.0f) {
                     float step = blockBox.max.y - position.y;
                     if (TryStepUp(world, step)) {
                         box = GetBounds();
@@ -283,8 +317,9 @@ void Player::ResolveCollisionsZ(const World& world) {
                     }
                 }
 
-                float blockCenterZ = (float)bz + 0.5f;
-                if (position.z < blockCenterZ) {
+                float penNeg = box.max.z - blockBox.min.z;
+                float penPos = blockBox.max.z - box.min.z;
+                if (penNeg < penPos) {
                     position.z = blockBox.min.z - half;
                 } else {
                     position.z = blockBox.max.z + half;
@@ -295,15 +330,23 @@ void Player::ResolveCollisionsZ(const World& world) {
     }
 }
 
-void Player::ResolveCollisionsY(const World& world) {
+void Player::ResolveCollisionsY(const World& world, float prevFeetY) {
     BoundingBox box = GetBounds();
 
     int minBX, maxBX, minBY, maxBY, minBZ, maxBZ;
     CollectOverlapRange(box, minBX, maxBX, minBY, maxBY, minBZ, maxBZ);
 
-    // Penetration tolerance for landing / head bumps (not for side-of-wall snaps).
-    float maxPen = fmaxf(0.51f, fabsf(velocity.y) * (1.0f / 30.0f) + 0.05f);
-    if (maxPen > 0.9f) maxPen = 0.9f;
+    float feetY     = box.min.y;
+    float headY     = box.max.y;
+    float prevHeadY = prevFeetY + PLAYER_HEIGHT;
+
+    // Swept range: include cells we traveled through this frame, not just
+    // the destination AABB (a hitch can skip past the ground cell).
+    minBY = (int)floorf(fminf(feetY, prevFeetY)) - 1;
+    maxBY = (int)floorf(fmaxf(headY, prevHeadY));
+
+    constexpr float kGroundStick = 0.08f;
+    constexpr float kSurfaceEps  = 0.001f;
 
     float bestFloorY = -INFINITY;
     float bestCeilY  =  INFINITY;
@@ -314,33 +357,26 @@ void Player::ResolveCollisionsY(const World& world) {
                 if (!IsSolid(world, bx, by, bz)) continue;
 
                 BoundingBox blockBox = GetBlockCollisionBounds(world, bx, by, bz);
-                if (!Overlaps(box, blockBox)) continue;
+                if (!OverlapsXZ(box, blockBox)) continue;
 
                 float blockH = blockBox.max.y - blockBox.min.y;
                 if (blockH < 0.001f) continue;
 
                 if (velocity.y <= 0.0f) {
-                    float feetY    = box.min.y;
                     float blockTop = blockBox.max.y;
-                    float pen      = blockTop - feetY;
-
-                    // Floor: feet near the TOP of this shape only (not mid-wall overlap).
-                    bool nearTop = feetY >= (blockBox.min.y + blockH * 0.5f - 0.01f);
-                    bool isFloor = nearTop && pen >= 0.0f && pen <= maxPen;
+                    // Started at/above this surface, now at/below it (with stick).
+                    // Body-height walls fail prevFeetY >= blockTop, so they
+                    // are not treated as floors.
+                    bool isFloor = (prevFeetY >= blockTop - kSurfaceEps) &&
+                                   (feetY <= blockTop + kGroundStick);
 
                     if (isFloor && blockTop > bestFloorY) {
                         bestFloorY = blockTop;
                     }
                 } else {
-                    float headY       = box.max.y;
                     float blockBottom = blockBox.min.y;
-                    float pen         = headY - blockBottom;
-
-                    // Ceiling: head near the BOTTOM of this shape only.
-                    // Prevents wall-side overlaps while jumping from snapping to
-                    // (blockMin.y - PLAYER_HEIGHT) and burying the player underground.
-                    bool nearBottom = headY <= (blockBox.min.y + blockH * 0.5f + 0.01f);
-                    bool isCeiling  = nearBottom && pen >= 0.0f && pen <= maxPen;
+                    bool isCeiling = (prevHeadY <= blockBottom + kSurfaceEps) &&
+                                     (headY >= blockBottom);
 
                     if (isCeiling && blockBottom < bestCeilY) {
                         bestCeilY = blockBottom;

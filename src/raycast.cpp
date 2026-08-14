@@ -39,39 +39,31 @@ RayHit RayCast(Ray ray, const World& world, float reachDistance){
     else { sideDist.z = (ray.position.z - blockZ) * deltaDist.z; }
 
     float distance = 0.0f;
-    Face lastface;
+    Face lastface{};
 
-    while(distance < reachDistance){
+    while(true){
+        float nextDist;
         if (sideDist.x < sideDist.y && sideDist.x < sideDist.z) {
+            nextDist = sideDist.x;
             sideDist.x += deltaDist.x;
             blockX += stepX;
-            distance = sideDist.x;
-            if (stepX == 1){
-                lastface = Face::LEFT_FACE;
-            } else if (stepX == -1){
-                lastface = Face::RIGHT_FACE;
-            }
+            lastface = (stepX == 1) ? Face::LEFT_FACE : Face::RIGHT_FACE;
         }
         else if (sideDist.y < sideDist.x && sideDist.y < sideDist.z) {
+            nextDist = sideDist.y;
             sideDist.y += deltaDist.y;
             blockY += stepY;
-            distance = sideDist.y;
-            if (stepY == 1){
-                lastface = Face::BOTTOM_FACE;
-            } else if (stepY == -1){
-                lastface = Face::TOP_FACE;
-            }
+            lastface = (stepY == 1) ? Face::BOTTOM_FACE : Face::TOP_FACE;
         }
         else {
+            nextDist = sideDist.z;
             sideDist.z += deltaDist.z;
             blockZ += stepZ;
-            distance = sideDist.z;
-            if (stepZ == 1){
-                lastface = Face::BACK_FACE;
-            } else if (stepZ == -1){
-                lastface = Face::FRONT_FACE;
-            }
+            lastface = (stepZ == 1) ? Face::BACK_FACE : Face::FRONT_FACE;
         }
+
+        if (nextDist > reachDistance) break;
+        distance = nextDist;
 
         if (IsSolid(world, blockX, blockY, blockZ)){
             rayHit.didHit = true;

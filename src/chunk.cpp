@@ -6,68 +6,45 @@
 #include "chunkcoord.h"
 #include <queue>
 
+static const Chunk* FindChunkAt(const World& world, int wx, int wy, int wz, int& lx, int& lz)
+{
+    ChunkCoord coord{};
+    if (!WorldToChunkLocal(wx, wy, wz, coord, lx, lz)) return nullptr;
+    auto it = world.chunks.find(coord);
+    if (it == world.chunks.end()) return nullptr;
+    return &it->second;
+}
+
 BlockId GetWorldBlock(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
 {
-    if (worldBlockY < 0 || worldBlockY >= CHUNK_HEIGHT) return Block::AIR;
-
-    int chunkX = (int)floor(worldBlockX / (float)CHUNK_SIZE);
-    int chunkZ = (int)floor(worldBlockZ / (float)CHUNK_SIZE);
-    int localX = worldBlockX - chunkX * CHUNK_SIZE;
-    int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
-
-    ChunkCoord coord = { chunkX, chunkZ };
-    if (world.chunks.count(coord) == 0) return Block::AIR;
-
-    const Chunk& chunk = world.chunks.at(coord);
-    return chunk.blocks[localX][worldBlockY][localZ];
+    int localX = 0, localZ = 0;
+    const Chunk* chunk = FindChunkAt(world, worldBlockX, worldBlockY, worldBlockZ, localX, localZ);
+    if (!chunk) return Block::AIR;
+    return chunk->blocks[localX][worldBlockY][localZ];
 }
 
 bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
 {
-    int chunkX = (int)floor(worldBlockX / (float)CHUNK_SIZE);
-    int chunkZ = (int)floor(worldBlockZ / (float)CHUNK_SIZE);
-    int localX = worldBlockX - chunkX * CHUNK_SIZE;
-    int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
-
-    ChunkCoord coord = { chunkX, chunkZ };
-    if (world.chunks.count(coord) == 0) return true; // chunk not loaded — treat as solid wall
-    if (worldBlockY < 0 || worldBlockY >= CHUNK_HEIGHT) return false;
-
-    const Chunk& chunk = world.chunks.at(coord);
-    BlockId id = chunk.blocks[localX][worldBlockY][localZ];
-    return GetBlockDef(id).blocksMotion;
+    int localX = 0, localZ = 0;
+    const Chunk* chunk = FindChunkAt(world, worldBlockX, worldBlockY, worldBlockZ, localX, localZ);
+    if (!chunk) return false; // unloaded = air (must match GetWorldBlock)
+    return GetBlockDef(chunk->blocks[localX][worldBlockY][localZ]).blocksMotion;
 }
 
 static uint8_t GetSunLight(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
 {
-    if (worldBlockY < 0 || worldBlockY >= CHUNK_HEIGHT) return 0;
-
-    int chunkX = (int)floor(worldBlockX / (float)CHUNK_SIZE);
-    int chunkZ = (int)floor(worldBlockZ / (float)CHUNK_SIZE);
-    int localX = worldBlockX - chunkX * CHUNK_SIZE;
-    int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
-
-    ChunkCoord coord = { chunkX, chunkZ };
-    if (world.chunks.count(coord) == 0) return 0;
-    const Chunk& chunk = world.chunks.at(coord);
-
-    return chunk.sunLight[localX][worldBlockY][localZ];
+    int localX = 0, localZ = 0;
+    const Chunk* chunk = FindChunkAt(world, worldBlockX, worldBlockY, worldBlockZ, localX, localZ);
+    if (!chunk) return 0;
+    return chunk->sunLight[localX][worldBlockY][localZ];
 }
 
 static uint8_t GetBlockLight(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
 {
-    if (worldBlockY < 0 || worldBlockY >= CHUNK_HEIGHT) return 0;
-
-    int chunkX = (int)floor(worldBlockX / (float)CHUNK_SIZE);
-    int chunkZ = (int)floor(worldBlockZ / (float)CHUNK_SIZE);
-    int localX = worldBlockX - chunkX * CHUNK_SIZE;
-    int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
-
-    ChunkCoord coord = { chunkX, chunkZ };
-    if (world.chunks.count(coord) == 0) return 0;
-    const Chunk& chunk = world.chunks.at(coord);
-
-    return chunk.blockLight[localX][worldBlockY][localZ];
+    int localX = 0, localZ = 0;
+    const Chunk* chunk = FindChunkAt(world, worldBlockX, worldBlockY, worldBlockZ, localX, localZ);
+    if (!chunk) return 0;
+    return chunk->blockLight[localX][worldBlockY][localZ];
 }
 
 Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chunkZ){
@@ -117,16 +94,8 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                         nz >= 0 && nz < CHUNK_SIZE) {
                         if (OccludesNeighborFace(chunk.blocks[nx][ny][nz], f)) continue;
                     } else {
-                        BlockId neighborId = GetWorldBlock(world, worldX, worldY, worldZ);
-                        // Unloaded / out-of-range: keep previous solid-wall cull behavior
-                        int chunkNX = (int)floor(worldX / (float)CHUNK_SIZE);
-                        int chunkNZ = (int)floor(worldZ / (float)CHUNK_SIZE);
-                        ChunkCoord ncoord = { chunkNX, chunkNZ };
-                        if (world.chunks.count(ncoord) == 0) {
-                            if (ny >= 0 && ny < CHUNK_HEIGHT) continue; // treat unloaded as full occluder
-                        } else if (OccludesNeighborFace(neighborId, f)) {
-                            continue;
-                        }
+                        // Cross-chunk / OOB: AIR if unloaded, so the rim keeps its faces.
+                        if (OccludesNeighborFace(GetWorldBlock(world, worldX, worldY, worldZ), f)) continue;
                     }
                     const BlockDefinition& def = GetBlockDef(blockType);
                     int baseVertex = vertCursor / 3;
