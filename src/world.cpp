@@ -84,7 +84,7 @@ void UnloadDistantChunks(World& world, int playerChunkX, int playerChunkZ, int r
     }
 }
 
-void SetBlock(World& world, int worldX, int worldY, int worldZ, Block type) {
+void SetBlock(World& world, int worldX, int worldY, int worldZ, BlockId type) {
     int chunkX = (int)floor(worldX / (float)CHUNK_SIZE);
     int chunkZ = (int)floor(worldZ / (float)CHUNK_SIZE);
     int localX = worldX - chunkX * CHUNK_SIZE;

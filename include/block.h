@@ -42,6 +42,7 @@ enum Block : BlockId {
     PLANKS,
     BRICK,
     SAND,
+    STONE_SLAB,
 };
 
 struct BlockDefinition {
@@ -49,6 +50,10 @@ struct BlockDefinition {
     Vector2 FACE_TEX[6];
     bool isLightSource;
     uint8_t lightLevel;
+    // Local-space collision AABB within the unit cell (0..1). Full block = {0,0,0}..{1,1,1}.
+    Vector3 collisionMin;
+    Vector3 collisionMax;
+    bool blocksMotion;       // participates in player collision when true
 };
 
 // Call once at startup before any GetBlockDef / TryGetBlockId use.
@@ -64,3 +69,7 @@ BlockId GetBlockCount();
 
 // Growable registration. contentId must outlive the registry (string literal OK).
 BlockId RegisterBlock(const BlockDefinition& def);
+
+// True if neighbor's collision fully covers the shared face (face index matches FACE_DIRS).
+// Used for mesh face culling so slabs don't hide adjacent full-block faces.
+bool OccludesNeighborFace(BlockId neighborId, int face);

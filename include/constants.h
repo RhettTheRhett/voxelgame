@@ -38,5 +38,11 @@ inline constexpr float PLAYER_TERMINAL_VELOCITY = 50.0f;
 inline constexpr float PLAYER_JUMP_HEIGHT = 1.25f;
 inline constexpr float PLAYER_JUMP_SPEED  = 8.37f;  // sqrt(2 * PLAYER_GRAVITY * PLAYER_JUMP_HEIGHT)
 
-inline constexpr float PLAYER_MOVE_SPEED = 5.5f;
+inline constexpr float PLAYER_MOVE_SPEED = 4.3f;
+inline constexpr float PLAYER_RUN_MULTIPLIER = 1.45f;
+
+inline constexpr float PLAYER_JUMP_BUFFER = 0.12f;
+
+inline constexpr float PLAYER_STEP_HEIGHT = 0.5f;
+
 inline constexpr float PLAYER_DEBUG_EYE_Y = 80.0f;

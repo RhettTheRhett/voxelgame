@@ -10,6 +10,7 @@
 #include "atmosphere.h"
 #include "constants.h"
 #include "player.h"
+#include "collision.h"
 #include <cmath>
 #include <filesystem>
 #include <chrono>
@@ -258,7 +259,7 @@ void DrawHotbar(const Player& player, const Texture2D atlasTexture)
 
         int iconMargin = 4;
 
-        Block blockInSlot = player.GetData().blockSlot[i];
+        BlockId blockInSlot = player.GetData().blockSlot[i];
         const BlockDefinition& def = GetBlockDef(blockInSlot);
         Vector2 faceTex = def.FACE_TEX[0];
 
@@ -395,6 +396,9 @@ int main(){
 
                 if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
                     SetBlock(world, placeX, placeY, placeZ, player.GetHeldItem());
+                
+                
+                
             }
 
             //sunlight stuff

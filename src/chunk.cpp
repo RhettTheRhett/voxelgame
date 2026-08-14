@@ -6,6 +6,22 @@
 #include "chunkcoord.h"
 #include <queue>
 
+BlockId GetWorldBlock(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
+{
+    if (worldBlockY < 0 || worldBlockY >= CHUNK_HEIGHT) return Block::AIR;
+
+    int chunkX = (int)floor(worldBlockX / (float)CHUNK_SIZE);
+    int chunkZ = (int)floor(worldBlockZ / (float)CHUNK_SIZE);
+    int localX = worldBlockX - chunkX * CHUNK_SIZE;
+    int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
+
+    ChunkCoord coord = { chunkX, chunkZ };
+    if (world.chunks.count(coord) == 0) return Block::AIR;
+
+    const Chunk& chunk = world.chunks.at(coord);
+    return chunk.blocks[localX][worldBlockY][localZ];
+}
+
 bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
 {
     int chunkX = (int)floor(worldBlockX / (float)CHUNK_SIZE);
@@ -14,11 +30,12 @@ bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBloc
     int localZ = worldBlockZ - chunkZ * CHUNK_SIZE;
 
     ChunkCoord coord = { chunkX, chunkZ };
-    if (world.chunks.count(coord) == 0) return true; // chunk not loaded
+    if (world.chunks.count(coord) == 0) return true; // chunk not loaded — treat as solid wall
     if (worldBlockY < 0 || worldBlockY >= CHUNK_HEIGHT) return false;
-    const Chunk& chunk = world.chunks.at(coord);
 
-    return chunk.blocks[localX][worldBlockY][localZ] != Block::AIR; 
+    const Chunk& chunk = world.chunks.at(coord);
+    BlockId id = chunk.blocks[localX][worldBlockY][localZ];
+    return GetBlockDef(id).blocksMotion;
 }
 
 static uint8_t GetSunLight(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
@@ -93,26 +110,34 @@ Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chun
                     int worldY = y + FACE_DIRS[f][1];
                     int worldZ = chunkZ * CHUNK_SIZE + z + FACE_DIRS[f][2];
 
-                    // fast path — local block, just array indexing
-                        if (nx >= 0 && nx < CHUNK_SIZE && 
-                            ny >= 0 && ny < CHUNK_HEIGHT && 
-                            nz >= 0 && nz < CHUNK_SIZE) {
-                            if (chunk.blocks[nx][ny][nz] != Block::AIR) continue;
+                    // Cull only when the neighbor's collision fully covers this face
+                    // (slabs must not hide adjacent full-block sides).
+                    if (nx >= 0 && nx < CHUNK_SIZE &&
+                        ny >= 0 && ny < CHUNK_HEIGHT &&
+                        nz >= 0 && nz < CHUNK_SIZE) {
+                        if (OccludesNeighborFace(chunk.blocks[nx][ny][nz], f)) continue;
+                    } else {
+                        BlockId neighborId = GetWorldBlock(world, worldX, worldY, worldZ);
+                        // Unloaded / out-of-range: keep previous solid-wall cull behavior
+                        int chunkNX = (int)floor(worldX / (float)CHUNK_SIZE);
+                        int chunkNZ = (int)floor(worldZ / (float)CHUNK_SIZE);
+                        ChunkCoord ncoord = { chunkNX, chunkNZ };
+                        if (world.chunks.count(ncoord) == 0) {
+                            if (ny >= 0 && ny < CHUNK_HEIGHT) continue; // treat unloaded as full occluder
+                        } else if (OccludesNeighborFace(neighborId, f)) {
+                            continue;
                         }
-                        // slow path — border block, hash map lookup
-                        else {
-                            int worldX = chunkX * CHUNK_SIZE + nx;
-                            int worldZ = chunkZ * CHUNK_SIZE + nz;
-                            if (IsSolid(world, worldX, ny, worldZ)) continue;
-                        }
-                    // emit face f for block at (x, y, z)
-                    // write 4 vertices into mesh.vertices using vertCursor
-                    int baseVertex = vertCursor / 3; // vertex index of this face's first vert
+                    }
+                    const BlockDefinition& def = GetBlockDef(blockType);
+                    int baseVertex = vertCursor / 3;
                     for (int v = 0; v < 4; v++)
                     {
-                        mesh.vertices[vertCursor++] = x + FACE_VERTS[f][v*3 + 0];
-                        mesh.vertices[vertCursor++] = y + FACE_VERTS[f][v*3 + 1];
-                        mesh.vertices[vertCursor++] = z + FACE_VERTS[f][v*3 + 2];
+                        float lx = FACE_VERTS[f][v*3 + 0];
+                        float ly = FACE_VERTS[f][v*3 + 1];
+                        float lz = FACE_VERTS[f][v*3 + 2];
+                        mesh.vertices[vertCursor++] = x + def.collisionMin.x + lx * (def.collisionMax.x - def.collisionMin.x);
+                        mesh.vertices[vertCursor++] = y + def.collisionMin.y + ly * (def.collisionMax.y - def.collisionMin.y);
+                        mesh.vertices[vertCursor++] = z + def.collisionMin.z + lz * (def.collisionMax.z - def.collisionMin.z);
                     }
                     //write 6 indices into mesh.indices using indexCursor
                     mesh.indices[indexCursor++] = baseVertex + 0;
