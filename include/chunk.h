@@ -62,7 +62,8 @@ struct Chunk {
     uint8_t sunLight[CHUNK_SIZE][CHUNK_HEIGHT][CHUNK_SIZE];
     uint8_t blockLight[CHUNK_SIZE][CHUNK_HEIGHT][CHUNK_SIZE];
     Vector3 position;
-    Mesh mesh;
+    Mesh mesh;              // opaque + cutout geometry
+    Mesh translucentMesh;   // glass / water — drawn after opaque with alpha blend
     bool meshDirty;
     bool needsSaving;
 };
@@ -70,7 +71,10 @@ struct Chunk {
 //void DrawChunk(const Chunk& chunk);
 BlockId GetWorldBlock(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ);
 bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ);
-Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chunkZ);
+// Raycast targets: motion-blocking OR fluids (so you can break/place against water).
+bool IsRaycastTarget(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ);
+void BuildChunkMeshes(const Chunk& chunk, const World& world, int chunkX, int chunkZ,
+                      Mesh& outOpaque, Mesh& outTranslucent);
 void GenerateChunk(Chunk& chunk, int chunkX, int chunkZ, float scale, int octaves, float persistence);
 
 void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChunks);

@@ -37,6 +37,7 @@ class Player {
 
     bool IsGravityPaused() const { return gravityPaused; }
     bool IsOnGround() const { return onGround; }
+    bool IsInWater() const { return inWater; }
 
     float GetStepHeight() const { return stepHeight; }
     void SetStepHeight(float height) { stepHeight = height; }
@@ -58,6 +59,7 @@ class Player {
     bool onGround = false;
     bool wasOnGround = false;
     bool gravityPaused = false;
+    bool inWater = false;
     float jumpBufferTimer = 0.0f;
     float stepHeight = PLAYER_STEP_HEIGHT;
 };

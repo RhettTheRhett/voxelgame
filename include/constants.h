@@ -47,6 +47,16 @@ inline constexpr float PLAYER_STEP_HEIGHT = 0.5f;
 
 inline constexpr float PLAYER_DEBUG_EYE_Y = 80.0f;
 
+// Fluid (water) movement — applied when the AABB overlaps any fluid cell.
+inline constexpr float PLAYER_WATER_MOVE_MULT     = 0.45f;  // horizontal speed scale
+inline constexpr float PLAYER_WATER_GRAVITY_MULT  = 0.35f;  // sink slower than air (no buoyancy)
+inline constexpr float PLAYER_WATER_SWIM_UP       = 5.0f;   // hold jump to swim up
+inline constexpr float PLAYER_WATER_TERMINAL      = 8.0f;   // max sink speed in water
+
+// Water simulation — ~2 game ticks between each flow step.
+inline constexpr float WATER_FLOW_DELAY = 2.0f / TICKS_PER_SECOND;
+inline constexpr int WATER_UPDATES_PER_FRAME = 32;
+
 // Default runtime settings (pause menu / GameSettings)
 inline constexpr float DEFAULT_MOUSE_SENSITIVITY = 0.1f;
 inline constexpr int   DEFAULT_RENDER_DISTANCE   = 6;

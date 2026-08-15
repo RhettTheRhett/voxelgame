@@ -4,6 +4,7 @@
 #include "world.h"
 #include "block.h"
 #include "chunkcoord.h"
+#include "water.h"
 #include <queue>
 
 static const Chunk* FindChunkAt(const World& world, int wx, int wy, int wz, int& lx, int& lz)
@@ -31,6 +32,15 @@ bool IsSolid(const World& world, int worldBlockX, int worldBlockY, int worldBloc
     return GetBlockDef(chunk->blocks[localX][worldBlockY][localZ]).blocksMotion;
 }
 
+bool IsRaycastTarget(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
+{
+    int localX = 0, localZ = 0;
+    const Chunk* chunk = FindChunkAt(world, worldBlockX, worldBlockY, worldBlockZ, localX, localZ);
+    if (!chunk) return false;
+    BlockId id = chunk->blocks[localX][worldBlockY][localZ];
+    return GetBlockDef(id).blocksMotion || IsFluid(id);
+}
+
 static uint8_t GetSunLight(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
 {
     int localX = 0, localZ = 0;
@@ -47,220 +57,235 @@ static uint8_t GetBlockLight(const World& world, int worldBlockX, int worldBlock
     return chunk->blockLight[localX][worldBlockY][localZ];
 }
 
-Mesh BuildChunkMesh(const Chunk& chunk, const World& world, int chunkX, int chunkZ){
-
-    // 1. constants and tables (FACE_VERTS, FACE_DIRS)
-    const int MAX_FACES = (CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE / 2) * 6;
-    const float ATLAS_TILE_SIZE = 1.0f / 16.0f;
-    
-    //const int MAX_FACES = 16383;
-
-    Mesh mesh = {0};
-
-    mesh.vertexCount = MAX_FACES * 4;
-    mesh.triangleCount = MAX_FACES * 2;
-
-    // 2. allocate mesh
-    mesh.vertices = (float*)MemAlloc(mesh.vertexCount * 3 * sizeof(float));
-    mesh.indices = (unsigned short*)MemAlloc(mesh.triangleCount * 3 * sizeof(unsigned short));;
-    mesh.colors = (unsigned char*)MemAlloc(mesh.vertexCount * 4 * sizeof(unsigned char));
-    mesh.texcoords = (float*)MemAlloc(mesh.vertexCount * 2 * sizeof(float));
-    // 3. cursors
-    int vertCursor  = 0;
+struct MeshWriter {
+    Mesh mesh{};
+    int vertCursor = 0;
     int indexCursor = 0;
     int colorCursor = 0;
     int textureCursor = 0;
-    // 4. fill loop
+
+    void Init(int maxFaces) {
+        mesh = {};
+        mesh.vertexCount = maxFaces * 4;
+        mesh.triangleCount = maxFaces * 2;
+        mesh.vertices = (float*)MemAlloc(mesh.vertexCount * 3 * sizeof(float));
+        mesh.indices = (unsigned short*)MemAlloc(mesh.triangleCount * 3 * sizeof(unsigned short));
+        mesh.colors = (unsigned char*)MemAlloc(mesh.vertexCount * 4 * sizeof(unsigned char));
+        mesh.texcoords = (float*)MemAlloc(mesh.vertexCount * 2 * sizeof(float));
+    }
+
+    Mesh Finalize() {
+        mesh.vertexCount = vertCursor / 3;
+        mesh.triangleCount = indexCursor / 3;
+        if (mesh.vertexCount > 0) {
+            UploadMesh(&mesh, false);
+        } else {
+            // Empty mesh — free CPU buffers; leave vaoId 0 so draw skips it.
+            if (mesh.vertices) { MemFree(mesh.vertices); mesh.vertices = nullptr; }
+            if (mesh.indices) { MemFree(mesh.indices); mesh.indices = nullptr; }
+            if (mesh.colors) { MemFree(mesh.colors); mesh.colors = nullptr; }
+            if (mesh.texcoords) { MemFree(mesh.texcoords); mesh.texcoords = nullptr; }
+        }
+        return mesh;
+    }
+};
+
+static void EmitFaceUVs(MeshWriter& w, int face, float u0, float v0, float u1, float v1) {
+    switch (face) {
+        case 0:
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v1;
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v1;
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v0;
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v0;
+            break;
+        case 1:
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v1;
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v1;
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v0;
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v0;
+            break;
+        case 2:
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v0;
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v0;
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v1;
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v1;
+            break;
+        case 3:
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v0;
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v0;
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v1;
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v1;
+            break;
+        case 4:
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v0;
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v0;
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v1;
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v1;
+            break;
+        default:
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v0;
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v0;
+            w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = v1;
+            w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = v1;
+            break;
+    }
+}
+
+void BuildChunkMeshes(const Chunk& chunk, const World& world, int chunkX, int chunkZ,
+                      Mesh& outOpaque, Mesh& outTranslucent) {
+    const int MAX_FACES = (CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE / 2) * 6;
+    const float ATLAS_TILE_SIZE = 1.0f / 16.0f;
+
+    MeshWriter opaque{};
+    MeshWriter translucent{};
+    opaque.Init(MAX_FACES);
+    // Water lakes need more translucent faces than glass houses.
+    translucent.Init(MAX_FACES / 2 + 64);
+
     for (int x = 0; x < CHUNK_SIZE; x++)
-        for (int y = 0; y < CHUNK_HEIGHT; y++)
-            for (int z = 0; z < CHUNK_SIZE; z++)
-            {
-                Block blockType = (Block)chunk.blocks[x][y][z];
-                if (blockType == Block::AIR) continue;
-                for (int f = 0; f < 6; f++)
-                {
-                    int nx = x + FACE_DIRS[f][0];
-                    int ny = y + FACE_DIRS[f][1];
-                    int nz = z + FACE_DIRS[f][2];
+    for (int y = 0; y < CHUNK_HEIGHT; y++)
+    for (int z = 0; z < CHUNK_SIZE; z++) {
+        BlockId blockType = chunk.blocks[x][y][z];
+        if (blockType == Block::AIR) continue;
 
-                    int worldX = chunkX * CHUNK_SIZE + x + FACE_DIRS[f][0];
-                    int worldY = y + FACE_DIRS[f][1];
-                    int worldZ = chunkZ * CHUNK_SIZE + z + FACE_DIRS[f][2];
+        const BlockDefinition& def = GetBlockDef(blockType);
+        MeshWriter& w = def.translucent ? translucent : opaque;
+        const bool fluid = IsFluid(blockType);
+        const int worldBX = chunkX * CHUNK_SIZE + x;
+        const int worldBZ = chunkZ * CHUNK_SIZE + z;
 
-                    // Cull only when the neighbor's collision fully covers this face
-                    // (slabs must not hide adjacent full-block sides).
-                    if (nx >= 0 && nx < CHUNK_SIZE &&
-                        ny >= 0 && ny < CHUNK_HEIGHT &&
-                        nz >= 0 && nz < CHUNK_SIZE) {
-                        if (OccludesNeighborFace(chunk.blocks[nx][ny][nz], f)) continue;
-                    } else {
-                        // Cross-chunk / OOB: AIR if unloaded, so the rim keeps its faces.
-                        if (OccludesNeighborFace(GetWorldBlock(world, worldX, worldY, worldZ), f)) continue;
-                    }
-                    const BlockDefinition& def = GetBlockDef(blockType);
-                    int baseVertex = vertCursor / 3;
-                    for (int v = 0; v < 4; v++)
-                    {
-                        float lx = FACE_VERTS[f][v*3 + 0];
-                        float ly = FACE_VERTS[f][v*3 + 1];
-                        float lz = FACE_VERTS[f][v*3 + 2];
-                        mesh.vertices[vertCursor++] = x + def.collisionMin.x + lx * (def.collisionMax.x - def.collisionMin.x);
-                        mesh.vertices[vertCursor++] = y + def.collisionMin.y + ly * (def.collisionMax.y - def.collisionMin.y);
-                        mesh.vertices[vertCursor++] = z + def.collisionMin.z + lz * (def.collisionMax.z - def.collisionMin.z);
-                    }
-                    //write 6 indices into mesh.indices using indexCursor
-                    mesh.indices[indexCursor++] = baseVertex + 0;
-                    mesh.indices[indexCursor++] = baseVertex + 3;
-                    mesh.indices[indexCursor++] = baseVertex + 2;
-                    mesh.indices[indexCursor++] = baseVertex + 0;
-                    mesh.indices[indexCursor++] = baseVertex + 2;
-                    mesh.indices[indexCursor++] = baseVertex + 1;
-                    // write 4 colors into mesh.colors
-                    
-                    unsigned char shade;
-                    
-                    
-                    //Color faceIndexColor;
-                    switch(f) {
-                        case 0: shade = 255; break; // +Y top     - brightest
-                        case 1: shade = 60;  break; // -Y bottom  - darkest
-                        case 2: shade = 180; break; // +X 
-                        case 3: shade = 180; break; // -X
-                        case 4: shade = 220; break; // +Z
-                        case 5: shade = 220; break; // -Z
-                        default: shade = 255; break;
-                    }
+        float c00 = 1.0f, c10 = 1.0f, c01 = 1.0f, c11 = 1.0f;
+        if (fluid) {
+            c00 = WaterCornerHeight(world, worldBX, y, worldBZ, 0, 0);
+            c10 = WaterCornerHeight(world, worldBX, y, worldBZ, 1, 0);
+            c01 = WaterCornerHeight(world, worldBX, y, worldBZ, 0, 1);
+            c11 = WaterCornerHeight(world, worldBX, y, worldBZ, 1, 1);
+        }
 
-                    const float MIN_LIGHT = 0.15f;
+        for (int f = 0; f < 6; f++) {
+            int nx = x + FACE_DIRS[f][0];
+            int ny = y + FACE_DIRS[f][1];
+            int nz = z + FACE_DIRS[f][2];
 
-                    // Sample light from adjacent air block (visible face neighbor)
-                    uint8_t neighborSun, neighborBlock;
-                    if (nx >= 0 && nx < CHUNK_SIZE &&
-                        ny >= 0 && ny < CHUNK_HEIGHT &&
-                        nz >= 0 && nz < CHUNK_SIZE) {
-                        neighborSun   = chunk.sunLight[nx][ny][nz];
-                        neighborBlock = chunk.blockLight[nx][ny][nz];
-                    } else {
-                        neighborSun   = GetSunLight(world, worldX, worldY, worldZ);
-                        neighborBlock = GetBlockLight(world, worldX, worldY, worldZ);
-                    }
+            int worldX = chunkX * CHUNK_SIZE + x + FACE_DIRS[f][0];
+            int worldY = y + FACE_DIRS[f][1];
+            int worldZ = chunkZ * CHUNK_SIZE + z + FACE_DIRS[f][2];
 
-                    // Sunlight -> drives RGB, gets scaled by sunBrightness uniform later
-                    float sunFactor = MIN_LIGHT + (1.0f - MIN_LIGHT) * (neighborSun / 15.0f);
-                    unsigned char sunShade = (unsigned char)(shade * sunFactor);
-
-                    // Block light -> drives alpha, immune to sunBrightness
-                    float blockFactor = neighborBlock / 15.0f;
-                    unsigned char blockShade = (unsigned char)(255 * blockFactor);
-
-                    for (int v = 0; v < 4; v++)
-                    {
-                        mesh.colors[colorCursor++] = sunShade;   // R
-                        mesh.colors[colorCursor++] = sunShade;   // G
-                        mesh.colors[colorCursor++] = sunShade;   // B
-                        mesh.colors[colorCursor++] = blockShade; // A -- now carries block light, not transparency
-                    }
-
-                    Vector2 tileCoord = GetBlockDef(blockType).FACE_TEX[f];
-                    float u0 = tileCoord.x * ATLAS_TILE_SIZE;
-                    float v0 = tileCoord.y * ATLAS_TILE_SIZE;
-                    float u1 = u0 + ATLAS_TILE_SIZE;
-                    float v1 = v0 + ATLAS_TILE_SIZE;
-                    switch (f)
-                    {
-                        case 0: 
-                        //(u1,v1), (u0,v1), (u0,v0), (u1,v0)
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v1;
-
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v1;
-
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v0;
-
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v0;
-                            break;
-                        case 1:
-                        //(u0,v1),(u1,v1), (u1,v0), (u0,v0)
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v1;
-
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v1;
-
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v0;
-
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v0;
-                            break;
-                        case 2:
-                        //(u0,v0),(u1,v0),(u1,v1),(u0,v1)
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v0;
-
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v0;
-
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v1;
-
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v1;
-                            break;
-                        case 3:
-                        //(u1,v0),(u0,v0),(u0,v1),(u1,v1)
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v0;
-
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v0;
-
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v1;
-
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v1;
-                            break;
-                        case 4:
-                        //(u0, v0),(u1, v0),(u1, v1),(u0, v1)
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v0;
-
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v0;
-
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v1;
-
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v1;
-                            break;
-                        case 5:
-                        //(u1, v0),(u0, v0),(u0, v1),(u1, v1)
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v0;
-
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v0;
-
-                            mesh.texcoords[textureCursor++] = u0;
-                            mesh.texcoords[textureCursor++] = v1;
-
-                            mesh.texcoords[textureCursor++] = u1;
-                            mesh.texcoords[textureCursor++] = v1;
-                            break;
-                    }
-                }
+            BlockId neighborId = Block::AIR;
+            if (nx >= 0 && nx < CHUNK_SIZE &&
+                ny >= 0 && ny < CHUNK_HEIGHT &&
+                nz >= 0 && nz < CHUNK_SIZE) {
+                neighborId = chunk.blocks[nx][ny][nz];
+            } else {
+                neighborId = GetWorldBlock(world, worldX, worldY, worldZ);
             }
-    // 5. update final counts
-    mesh.vertexCount  = vertCursor / 3;
-    mesh.triangleCount = indexCursor / 3;
-    // 6. upload and return
-    UploadMesh(&mesh, false);
-    return mesh;
+
+            if (OccludesNeighborFace(blockType, neighborId, f)) continue;
+            // Glass-against-same-glass only (fluids handled below).
+            if (def.translucent && !fluid && neighborId == blockType) continue;
+
+            if (fluid && IsFluid(neighborId)) {
+                // No shared top/bottom between stacked water.
+                if (f == 0 || f == 1) continue;
+                // Keep a side face only when this cell is taller (step / shore).
+                if (WaterMeshHeight(blockType) <= WaterMeshHeight(neighborId) + 0.01f) continue;
+            }
+
+            int baseVertex = w.vertCursor / 3;
+            for (int v = 0; v < 4; v++) {
+                float lx = FACE_VERTS[f][v * 3 + 0];
+                float ly = FACE_VERTS[f][v * 3 + 1];
+                float lz = FACE_VERTS[f][v * 3 + 2];
+
+                float px, py, pz;
+                if (fluid) {
+                    px = (float)x + lx;
+                    pz = (float)z + lz;
+                    float topY;
+                    if (lx < 0.5f && lz < 0.5f) topY = c00;
+                    else if (lx >= 0.5f && lz < 0.5f) topY = c10;
+                    else if (lx < 0.5f && lz >= 0.5f) topY = c01;
+                    else topY = c11;
+
+                    if (f == 0) {
+                        // Sloped / pointed top from corner heights.
+                        py = (float)y + topY;
+                    } else if (f == 1) {
+                        py = (float)y;
+                    } else {
+                        // Side: top edge follows the slope, bottom stays at cell floor.
+                        py = (float)y + (ly > 0.5f ? topY : 0.0f);
+                    }
+                } else {
+                    px = x + def.collisionMin.x + lx * (def.collisionMax.x - def.collisionMin.x);
+                    py = y + def.collisionMin.y + ly * (def.collisionMax.y - def.collisionMin.y);
+                    pz = z + def.collisionMin.z + lz * (def.collisionMax.z - def.collisionMin.z);
+                }
+
+                w.mesh.vertices[w.vertCursor++] = px;
+                w.mesh.vertices[w.vertCursor++] = py;
+                w.mesh.vertices[w.vertCursor++] = pz;
+            }
+
+            w.mesh.indices[w.indexCursor++] = (unsigned short)(baseVertex + 0);
+            w.mesh.indices[w.indexCursor++] = (unsigned short)(baseVertex + 3);
+            w.mesh.indices[w.indexCursor++] = (unsigned short)(baseVertex + 2);
+            w.mesh.indices[w.indexCursor++] = (unsigned short)(baseVertex + 0);
+            w.mesh.indices[w.indexCursor++] = (unsigned short)(baseVertex + 2);
+            w.mesh.indices[w.indexCursor++] = (unsigned short)(baseVertex + 1);
+
+            unsigned char shade;
+            switch (f) {
+                case 0: shade = 255; break;
+                case 1: shade = 60;  break;
+                case 2: shade = 180; break;
+                case 3: shade = 180; break;
+                case 4: shade = 220; break;
+                case 5: shade = 220; break;
+                default: shade = 255; break;
+            }
+
+            const float MIN_LIGHT = 0.15f;
+            uint8_t neighborSun, neighborBlock;
+            if (nx >= 0 && nx < CHUNK_SIZE &&
+                ny >= 0 && ny < CHUNK_HEIGHT &&
+                nz >= 0 && nz < CHUNK_SIZE) {
+                neighborSun   = chunk.sunLight[nx][ny][nz];
+                neighborBlock = chunk.blockLight[nx][ny][nz];
+            } else {
+                neighborSun   = GetSunLight(world, worldX, worldY, worldZ);
+                neighborBlock = GetBlockLight(world, worldX, worldY, worldZ);
+            }
+
+            // Side faces against air: sample this cell so sides aren't pitch black.
+            if (fluid && neighborId == Block::AIR) {
+                neighborSun   = chunk.sunLight[x][y][z];
+                neighborBlock = chunk.blockLight[x][y][z];
+            }
+
+            float sunFactor = MIN_LIGHT + (1.0f - MIN_LIGHT) * (neighborSun / 15.0f);
+            unsigned char sunShade = (unsigned char)(shade * sunFactor);
+            float blockFactor = neighborBlock / 15.0f;
+            unsigned char blockShade = (unsigned char)(255 * blockFactor);
+
+            for (int v = 0; v < 4; v++) {
+                w.mesh.colors[w.colorCursor++] = sunShade;
+                w.mesh.colors[w.colorCursor++] = sunShade;
+                w.mesh.colors[w.colorCursor++] = sunShade;
+                w.mesh.colors[w.colorCursor++] = blockShade;
+            }
+
+            Vector2 tileCoord = def.FACE_TEX[f];
+            float u0 = tileCoord.x * ATLAS_TILE_SIZE;
+            float v0 = tileCoord.y * ATLAS_TILE_SIZE;
+            float u1 = u0 + ATLAS_TILE_SIZE;
+            float v1 = v0 + ATLAS_TILE_SIZE;
+            EmitFaceUVs(w, f, u0, v0, u1, v1);
+        }
+    }
+
+    outOpaque = opaque.Finalize();
+    outTranslucent = translucent.Finalize();
 }
 
 void GenerateChunk(Chunk& chunk,int chunkX,int chunkZ, float scale,int octaves,float persistence)
@@ -344,19 +369,17 @@ void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChun
             for (int z = 0; z < CHUNK_SIZE; z++){
                 bool inSunlight = true;
                 for (int y = CHUNK_HEIGHT - 1; y >= 0; y--){
-                    
-                    if(chunk.blocks[x][y][z] == Block::AIR){
-                        if(inSunlight){
+                    const BlockDefinition& def = GetBlockDef(chunk.blocks[x][y][z]);
+                    // Non-opaque (air, glass, future water/leaves) lets skylight continue.
+                    if (!def.opaque) {
+                        chunk.sunLight[x][y][z] = inSunlight ? 15 : 0;
+                    } else {
+                        if (inSunlight) {
                             chunk.sunLight[x][y][z] = 15;
+                            inSunlight = false;
                         } else {
                             chunk.sunLight[x][y][z] = 0;
                         }
-                    } else {
-                        if(inSunlight){
-                            chunk.sunLight[x][y][z] = 15;
-                            inSunlight = false;
-                        }else {chunk.sunLight[x][y][z] = 0;}
-                        
                     }
                 }
             }
@@ -369,8 +392,9 @@ void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChun
         for (int x = 0; x < CHUNK_SIZE; x++)
             for (int y = 0; y < CHUNK_HEIGHT; y++)
                 for (int z = 0; z < CHUNK_SIZE; z++) {
-                    if (chunk.blocks[x][y][z] == (uint16_t)Block::AIR && chunk.sunLight[x][y][z] == 15) {
-                        if (y == 0 || chunk.blocks[x][y-1][z] != (uint16_t)Block::AIR) {
+                    if (!GetBlockDef(chunk.blocks[x][y][z]).opaque && chunk.sunLight[x][y][z] == 15) {
+                        BlockId below = (y == 0) ? Block::AIR : chunk.blocks[x][y-1][z];
+                        if (y == 0 || GetBlockDef(below).opaque) {
                             queue.push({coord.x * CHUNK_SIZE + x, y, coord.z * CHUNK_SIZE + z,15 });
                             break;
                         }
@@ -401,7 +425,10 @@ void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChun
             int lx = nx - nChunkX * CHUNK_SIZE;
             int lz = nz - nChunkZ * CHUNK_SIZE;
 
-            if (GetBlockDef(nChunk.blocks[lx][ny][lz]).isLightSource) continue;
+            const BlockDefinition& nDef = GetBlockDef(nChunk.blocks[lx][ny][lz]);
+            if (nDef.isLightSource) continue;
+            // Skylight only travels through non-opaque cells (air/glass).
+            if (nDef.opaque) continue;
             if (nChunk.sunLight[lx][ny][lz] >= newLevel) continue;
 
             nChunk.sunLight[lx][ny][lz] = newLevel;
@@ -446,7 +473,7 @@ static void SeedBlockLightFromAdjacentChunks(World& world, int chunkX, int chunk
                     uint8_t level = nChunk.blockLight[CHUNK_SIZE - 1][y][z];
                     if (level == 0) continue;
                     int worldZ = nCoord.z * CHUNK_SIZE + z;
-                    if (!IsSolid(world, worldX, y, worldZ))
+                    if (!GetBlockDef(GetWorldBlock(world, worldX, y, worldZ)).opaque)
                         queue.push({worldX, y, worldZ, level});
                 }
         } else if (off[0] == 1) {
@@ -456,7 +483,7 @@ static void SeedBlockLightFromAdjacentChunks(World& world, int chunkX, int chunk
                     uint8_t level = nChunk.blockLight[0][y][z];
                     if (level == 0) continue;
                     int worldZ = nCoord.z * CHUNK_SIZE + z;
-                    if (!IsSolid(world, worldX, y, worldZ))
+                    if (!GetBlockDef(GetWorldBlock(world, worldX, y, worldZ)).opaque)
                         queue.push({worldX, y, worldZ, level});
                 }
         } else if (off[1] == -1) {
@@ -466,7 +493,7 @@ static void SeedBlockLightFromAdjacentChunks(World& world, int chunkX, int chunk
                     uint8_t level = nChunk.blockLight[x][y][CHUNK_SIZE - 1];
                     if (level == 0) continue;
                     int worldX = nCoord.x * CHUNK_SIZE + x;
-                    if (!IsSolid(world, worldX, y, worldZ))
+                    if (!GetBlockDef(GetWorldBlock(world, worldX, y, worldZ)).opaque)
                         queue.push({worldX, y, worldZ, level});
                 }
         } else if (off[1] == 1) {
@@ -476,7 +503,7 @@ static void SeedBlockLightFromAdjacentChunks(World& world, int chunkX, int chunk
                     uint8_t level = nChunk.blockLight[x][y][0];
                     if (level == 0) continue;
                     int worldX = nCoord.x * CHUNK_SIZE + x;
-                    if (!IsSolid(world, worldX, y, worldZ))
+                    if (!GetBlockDef(GetWorldBlock(world, worldX, y, worldZ)).opaque)
                         queue.push({worldX, y, worldZ, level});
                 }
         }
@@ -512,7 +539,8 @@ static void SpreadBlockLightBFS(World& world, std::queue<LightNode>& queue) {
 
             nChunk.blockLight[lx][ny][lz] = newLevel;
             nChunk.meshDirty = true;
-            if (!IsSolid(world, nx, ny, nz)) {
+            // Propagate through non-opaque (air/glass), not merely non-colliding.
+            if (!GetBlockDef(nChunk.blocks[lx][ny][lz]).opaque) {
                 queue.push({nx, ny, nz, newLevel});
             }
         }

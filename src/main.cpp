@@ -12,6 +12,7 @@
 #include "player.h"
 #include "collision.h"
 #include "settings.h"
+#include "water.h"
 #include <cmath>
 #include <filesystem>
 #include <chrono>
@@ -585,8 +586,6 @@ int main(){
                 waitingBind = BindSlot::None;
                 pauseOpenedThisFrame = true;
                 EnableCursor();
-                // Fall through to the pause draw so EndDrawing still runs
-                // (Raylib polls input there). Same-frame Escape must not close.
             }
 
             if (state == GameState::PLAYING) {
@@ -613,18 +612,23 @@ int main(){
                 int worldBlockY = (int)hit.position.y;
                 int worldBlockZ = (int)hit.position.z;
 
-                int placeX = (int)hit.position.x + FACE_DIRS[hit.faceHit][0];
-                int placeY = (int)hit.position.y + FACE_DIRS[hit.faceHit][1];
-                int placeZ = (int)hit.position.z + FACE_DIRS[hit.faceHit][2];
-
-                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
-                    SetBlock(world, worldBlockX, worldBlockY, worldBlockZ, Block::AIR);
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+                    BlockId hitId = GetWorldBlock(world, worldBlockX, worldBlockY, worldBlockZ);
+                    if (IsFluid(hitId)) {
+                        // Fluids aren't mined — poke the sim so orphan flowing can evaporate.
+                        // Buckets later will use this hit instead of SetBlock(AIR).
+                        NotifyWaterChange(world, worldBlockX, worldBlockY, worldBlockZ);
+                    } else {
+                        SetBlock(world, worldBlockX, worldBlockY, worldBlockZ, Block::AIR);
+                    }
+                }
 
                 if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON))
-                    SetBlock(world, placeX, placeY, placeZ, player.GetHeldItem());
+                    TryPlaceBlock(world, player, ray, hit, player.GetHeldItem());
             }
 
             AdvanceTime(dt, world);
+            ProcessWaterUpdates(world, dt, WATER_UPDATES_PER_FRAME);
             float sunBrightness = CalculateSunBrightness(world.manifest.timeOfDay);
             SetShaderValue(shader, sunBrightnessLocation, &sunBrightness, SHADER_UNIFORM_FLOAT);
 
@@ -635,11 +639,13 @@ int main(){
                     
                     DrawBoundingBox(player.GetBounds(), GREEN);
                     if (hit.didHit) {
-                        DrawCubeWires(
-                            {hit.position.x + 0.5f, hit.position.y + 0.5f, hit.position.z + 0.5f},
-                            1.01f, 1.01f, 1.01f,
-                            WHITE
+                        BoundingBox hitBox = GetBlockCollisionBounds(
+                            world,
+                            (int)hit.position.x,
+                            (int)hit.position.y,
+                            (int)hit.position.z
                         );
+                        DrawBoundingBox(hitBox, WHITE);
                     }
                     if (showChunkBorders) {
                         DrawChunkBorders(playerChunkX, playerChunkZ, 3);
@@ -654,7 +660,7 @@ int main(){
 
             break;
             }
-            // Opened pause this frame: draw the paused overlay (falls through).
+        
         }
 
         case GameState::PAUSED : {
@@ -665,8 +671,7 @@ int main(){
             bool saveAndQuit = false;
             bool resume = false;
 
-            // Open-frame fallthrough still has IsKeyPressed(ESCAPE)==true.
-            // HandleBindCapture already used Escape to cancel a remap.
+
             if (!pauseOpenedThisFrame && !wasCapturingBind && IsKeyPressed(KEY_ESCAPE)) {
                 resume = true;
             }

@@ -43,6 +43,17 @@ enum Block : BlockId {
     BRICK,
     SAND,
     STONE_SLAB,
+    GLASS,
+    STONE_SLAB_TOP, // upper half-slab; append-only so old saves keep glass id
+    // Water: source + flowing depths (no block-state metadata yet).
+    WATER,   // source, level 0
+    WATER_1,
+    WATER_2,
+    WATER_3,
+    WATER_4,
+    WATER_5,
+    WATER_6,
+    WATER_7,
 };
 
 struct BlockDefinition {
@@ -54,6 +65,11 @@ struct BlockDefinition {
     Vector3 collisionMin;
     Vector3 collisionMax;
     bool blocksMotion;       // participates in player collision when true
+    // Opaque: hides neighbor faces + stops sky/block light from traveling through.
+    // Independent of blocksMotion — glass collides but is not opaque.
+    bool opaque;
+    // Translucent: alpha-blended mesh pass (glass, water). Cutout leaves come later.
+    bool translucent;
 };
 
 // Call once at startup before any GetBlockDef / TryGetBlockId use.
@@ -70,6 +86,14 @@ BlockId GetBlockCount();
 // Growable registration. contentId must outlive the registry (string literal OK).
 BlockId RegisterBlock(const BlockDefinition& def);
 
-// True if neighbor's collision fully covers the shared face (face index matches FACE_DIRS).
-// Used for mesh face culling so slabs don't hide adjacent full-block faces.
-bool OccludesNeighborFace(BlockId neighborId, int face);
+// True if neighbor fully covers the face this block actually emits (partial shapes included).
+// face index matches FACE_DIRS. Non-opaque neighbors never occlude.
+bool OccludesNeighborFace(BlockId selfId, BlockId neighborId, int face);
+
+// Helpers for slab placement / merging.
+bool IsBottomSlab(BlockId id);
+bool IsTopSlab(BlockId id);
+bool IsSlab(BlockId id);
+// Matching bottom+top stone slabs combine into full stone (Minecraft double-slab).
+// TECH DEBT: hardcodes Block::STONE — wrong once wood/brick/etc. slabs exist.
+BlockId SlabDoubleResult(BlockId a, BlockId b);

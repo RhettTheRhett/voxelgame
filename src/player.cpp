@@ -5,6 +5,7 @@
 #include "collision.h"
 #include "chunk.h"
 #include "world.h"
+#include "water.h"
 #include <cmath>
 #include <cstdio>
 
@@ -23,9 +24,9 @@ void Player::InitDefaultHotbar() {
         "game:stone_slab",
         "game:light_stone",
         "game:wood",
-        "game:planks",
+        "game:glass",
         "game:brick",
-        "game:sand",
+        "game:water",
     };
 
     playerData.currentSlot = 0;
@@ -128,7 +129,15 @@ void Player::ApplyDebugInput() {
 }
 
 void Player::TryConsumeJumpBuffer() {
-    if (jumpBufferTimer <= 0.0f || !onGround) return;
+    if (jumpBufferTimer <= 0.0f) return;
+
+    if (inWater) {
+        // Hold-jump while submerged = swim up (buffer stays refreshed while key down).
+        velocity.y = PLAYER_WATER_SWIM_UP;
+        return;
+    }
+
+    if (!onGround) return;
 
     velocity.y = PLAYER_JUMP_SPEED;
     onGround = false;
@@ -136,24 +145,50 @@ void Player::TryConsumeJumpBuffer() {
     jumpBufferTimer = 0.0f;
 }
 
+static bool BoundsTouchFluid(const World& world, const BoundingBox& box) {
+    int minBX = (int)floorf(box.min.x);
+    int maxBX = (int)floorf(box.max.x);
+    int minBY = (int)floorf(box.min.y);
+    int maxBY = (int)floorf(box.max.y);
+    int minBZ = (int)floorf(box.min.z);
+    int maxBZ = (int)floorf(box.max.z);
+
+    for (int by = minBY; by <= maxBY; by++)
+    for (int bx = minBX; bx <= maxBX; bx++)
+    for (int bz = minBZ; bz <= maxBZ; bz++) {
+        if (IsFluid(GetWorldBlock(world, bx, by, bz))) return true;
+    }
+    return false;
+}
+
 void Player::UpdatePhysics(World& world, float deltaTime) {
     wasOnGround = onGround;
     onGround = false;
 
-    // Streaming a new ring of chunks can hitch; unclamped gravity then
-    // tunnels more than a block and discrete floor tests miss the surface.
     constexpr float kMaxPhysicsDt = 1.0f / 20.0f;
     if (deltaTime > kMaxPhysicsDt) deltaTime = kMaxPhysicsDt;
 
-    if (!gravityPaused) {
+    inWater = BoundsTouchFluid(world, GetBounds());
+
+    if (inWater) {
+        // Slower strafe — ApplyInput already wrote dry-land speeds into velocity.xz.
+        velocity.x *= PLAYER_WATER_MOVE_MULT;
+        velocity.z *= PLAYER_WATER_MOVE_MULT;
+
+        if (!gravityPaused) {
+            // Sink by default (reduced gravity). Jump/swim handled in TryConsumeJumpBuffer.
+            velocity.y -= PLAYER_GRAVITY * PLAYER_WATER_GRAVITY_MULT * deltaTime;
+            velocity.y = Clamp(velocity.y, -PLAYER_WATER_TERMINAL, PLAYER_WATER_SWIM_UP);
+        } else {
+            velocity.y = 0.0f;
+        }
+    } else if (!gravityPaused) {
         velocity.y -= PLAYER_GRAVITY * deltaTime;
         velocity.y = Clamp(velocity.y, -PLAYER_TERMINAL_VELOCITY, PLAYER_TERMINAL_VELOCITY);
     } else {
         velocity.y = 0.0f;
     }
 
-    // Y first so we snap to ground before walking — avoids moving XZ while
-    // intersecting the floor (which dropped the ground cell out of the Y loop).
     float prevFeetY = position.y;
     position.y += velocity.y * deltaTime;
     ResolveCollisionsY(world, prevFeetY);
