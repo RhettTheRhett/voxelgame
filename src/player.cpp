@@ -19,14 +19,14 @@ void Player::InitDefaultHotbar() {
     // Resolve via content ids so hotbar tracks the registry, not hard-coded ordinals.
     static const char* kDefaultHotbarIds[HOTBAR_SIZE] = {
         "game:dirt",
-        "game:grass",
         "game:stone",
         "game:stone_slab",
-        "game:light_stone",
         "game:wood",
         "game:glass",
-        "game:brick",
         "game:water",
+        "game:leaves",
+        "game:red_mushroom",
+        "game:light_stone",
     };
 
     playerData.currentSlot = 0;
@@ -91,21 +91,31 @@ void Player::ApplyInput(float yaw, float deltaTime, const GameSettings& settings
     velocity.x = 0.0f;
     velocity.z = 0.0f;
 
-    bool moving =
-        IsKeyDown(settings.keyForward) ||
-        IsKeyDown(settings.keyBack) ||
-        IsKeyDown(settings.keyLeft) ||
-        IsKeyDown(settings.keyRight);
+    const bool holdForward = IsKeyDown(settings.keyForward);
+    const bool holdBack    = IsKeyDown(settings.keyBack);
+    const bool holdLeft    = IsKeyDown(settings.keyLeft);
+    const bool holdRight   = IsKeyDown(settings.keyRight);
 
-    float speed = PLAYER_MOVE_SPEED;
-    if (moving && IsKeyDown(settings.keySprint)) {
-        speed *= PLAYER_RUN_MULTIPLIER;
+    float forwardSpeed = PLAYER_MOVE_SPEED;
+    float backSpeed    = PLAYER_MOVE_SPEED;
+    float strafeSpeed  = PLAYER_MOVE_SPEED;
+
+    // Sprint: full boost forward, half the bonus on strafe, never while backing up.
+    if (IsKeyDown(settings.keySprint) && !holdBack) {
+        if (holdForward) {
+            forwardSpeed *= PLAYER_RUN_MULTIPLIER;
+        }
+        if (holdLeft || holdRight) {
+            const float strafeMult =
+                1.0f + (PLAYER_RUN_MULTIPLIER - 1.0f) * PLAYER_RUN_STRAFE_BONUS_SCALE;
+            strafeSpeed *= strafeMult;
+        }
     }
 
-    if (IsKeyDown(settings.keyForward)) { velocity.x += moveForward.x * speed; velocity.z += moveForward.z * speed; }
-    if (IsKeyDown(settings.keyBack))    { velocity.x -= moveForward.x * speed; velocity.z -= moveForward.z * speed; }
-    if (IsKeyDown(settings.keyLeft))    { velocity.x -= moveSide.x    * speed; velocity.z -= moveSide.z    * speed; }
-    if (IsKeyDown(settings.keyRight))   { velocity.x += moveSide.x    * speed; velocity.z += moveSide.z    * speed; }
+    if (holdForward) { velocity.x += moveForward.x * forwardSpeed; velocity.z += moveForward.z * forwardSpeed; }
+    if (holdBack)    { velocity.x -= moveForward.x * backSpeed;    velocity.z -= moveForward.z * backSpeed; }
+    if (holdLeft)    { velocity.x -= moveSide.x    * strafeSpeed;  velocity.z -= moveSide.z    * strafeSpeed; }
+    if (holdRight)   { velocity.x += moveSide.x    * strafeSpeed;  velocity.z += moveSide.z    * strafeSpeed; }
 
     // Minecraft-style jump buffer: holding/tapping jump queues until grounded.
     if (IsKeyDown(settings.keyJump)) {

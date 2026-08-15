@@ -4,6 +4,7 @@
 #include "block.h"
 #include "constants.h"
 
+#include <cmath>
 #include <queue>
 #include <unordered_set>
 #include <cstdint>
@@ -280,11 +281,41 @@ float WaterCornerHeight(const World& world, int bx, int by, int bz, int cx, int 
         }
     }
 
-    // Fully submerged corner → flat full height (no early-out on nearby sources —
-    // that made placing sources underwater spike random corners).
     if (underFluid) return 1.0f;
     if (count == 0) return WaterMeshHeight(GetWorldBlock(world, bx, by, bz));
     return sum / (float)count;
+}
+
+bool SampleWaterAtEye(const World& world, Vector3 eye, float& outSurfaceY, float& outSubmersion) {
+    const int bx = (int)floorf(eye.x);
+    const int bz = (int)floorf(eye.z);
+    const int byEye = (int)floorf(eye.y);
+
+    // Search a short column around the eye for the top of a water volume.
+    int fluidTop = -1;
+    for (int y = byEye + 2; y >= byEye - 3; y--) {
+        if (y < 0 || y >= CHUNK_HEIGHT) continue;
+        if (IsFluid(GetWorldBlock(world, bx, y, bz))) {
+            fluidTop = y;
+            break;
+        }
+    }
+    if (fluidTop < 0) return false;
+
+    while (fluidTop + 1 < CHUNK_HEIGHT &&
+           IsFluid(GetWorldBlock(world, bx, fluidTop + 1, bz))) {
+        fluidTop++;
+    }
+
+    BlockId topId = GetWorldBlock(world, bx, fluidTop, bz);
+    float surface = (float)fluidTop + WaterMeshHeight(topId);
+    if (IsFluid(GetWorldBlock(world, bx, fluidTop + 1, bz))) {
+        surface = (float)fluidTop + 1.0f;
+    }
+
+    outSurfaceY = surface;
+    outSubmersion = surface - eye.y;
+    return true;
 }
 
 void NotifyWaterChange(World& world, int x, int y, int z) {

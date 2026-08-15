@@ -17,30 +17,36 @@ constexpr Vector3 kSlabMin = {0.0f, 0.0f, 0.0f};
 constexpr Vector3 kSlabMax = {1.0f, 0.5f, 1.0f};
 constexpr Vector3 kSlabTopMin = {0.0f, 0.5f, 0.0f};
 constexpr Vector3 kSlabTopMax = {1.0f, 1.0f, 1.0f};
+// Small centered pick AABB for cross plants (not used for collision).
+constexpr Vector3 kMushroomMin = {0.3f, 0.0f, 0.3f};
+constexpr Vector3 kMushroomMax = {0.7f, 0.45f, 0.7f};
 
 static BlockDefinition MakeWaterDef(const char* id, float height) {
     Vector3 mn = {0.0f, 0.0f, 0.0f};
     Vector3 mx = {1.0f, height, 1.0f};
     Vector2 tex = {2, 3}; // atlas tile for water
-    return { id, {tex,tex,tex,tex,tex,tex}, false, 0, mn, mx, false, false, true };
+    return {
+        id, {tex, tex, tex, tex, tex, tex}, false, 0, mn, mx,
+        false, false, true, BlockMeshShape::Cube, 0
+    };
 }
 
 // Builtin table — registration order MUST match enum Block ordinals.
-// Fields: contentId, FACE_TEX[6], isLightSource, lightLevel, collMin, collMax, blocksMotion, opaque, translucent
+// Trailing fields: blocksMotion, opaque, translucent, meshShape, lightOpacity
 const BlockDefinition kBuiltinBlocks[] = {
-    {"game:air",         {{},{},{},{},{},{}}, false, 0, kFullMin, kFullMax, false, false, false},
-    {"game:bedrock",     {{15,15},{15,15},{15,15},{15,15},{15,15},{15,15}}, false, 0, kFullMin, kFullMax, true, true, false},
-    {"game:grass",       {{0,0}, {1,0}, {0,1}, {0,1}, {0,1}, {0,1}}, false, 0, kFullMin, kFullMax, true, true, false},
-    {"game:dirt",        {{1,0},{1,0},{1,0},{1,0},{1,0},{1,0}}, false, 0, kFullMin, kFullMax, true, true, false},
-    {"game:stone",       {{2,0},{2,0},{2,0},{2,0},{2,0},{2,0}}, false, 0, kFullMin, kFullMax, true, true, false},
-    {"game:light_stone", {{1,1},{1,1},{1,1},{1,1},{1,1},{1,1}}, true, 15, kFullMin, kFullMax, true, true, false},
-    {"game:wood",        {{0,2},{0,2},{1,2},{1,2},{1,2},{1,2}}, false, 0, kFullMin, kFullMax, true, true, false},
-    {"game:planks",      {{0,3},{0,3},{0,3},{0,3},{0,3},{0,3}}, false, 0, kFullMin, kFullMax, true, true, false},
-    {"game:brick",       {{2,1},{2,1},{2,1},{2,1},{2,1},{2,1}}, false, 0, kFullMin, kFullMax, true, true, false},
-    {"game:sand",        {{2,2},{2,2},{2,2},{2,2},{2,2},{2,2}}, false, 0, kFullMin, kFullMax, true, true, false},
-    {"game:stone_slab",  {{2,0},{2,0},{2,0},{2,0},{2,0},{2,0}}, false, 0, kSlabMin, kSlabMax, true, true, false},
-    {"game:glass",       {{1,3},{1,3},{1,3},{1,3},{1,3},{1,3}}, false, 0, kFullMin, kFullMax, true, false, true},
-    {"game:stone_slab_top", {{2,0},{2,0},{2,0},{2,0},{2,0},{2,0}}, false, 0, kSlabTopMin, kSlabTopMax, true, true, false},
+    {"game:air",         {{},{},{},{},{},{}}, false, 0, kFullMin, kFullMax, false, false, false, BlockMeshShape::Cube, 0},
+    {"game:bedrock",     {{15,15},{15,15},{15,15},{15,15},{15,15},{15,15}}, false, 0, kFullMin, kFullMax, true, true, false, BlockMeshShape::Cube, 0},
+    {"game:grass",       {{0,0}, {1,0}, {0,1}, {0,1}, {0,1}, {0,1}}, false, 0, kFullMin, kFullMax, true, true, false, BlockMeshShape::Cube, 0},
+    {"game:dirt",        {{1,0},{1,0},{1,0},{1,0},{1,0},{1,0}}, false, 0, kFullMin, kFullMax, true, true, false, BlockMeshShape::Cube, 0},
+    {"game:stone",       {{2,0},{2,0},{2,0},{2,0},{2,0},{2,0}}, false, 0, kFullMin, kFullMax, true, true, false, BlockMeshShape::Cube, 0},
+    {"game:light_stone", {{1,1},{1,1},{1,1},{1,1},{1,1},{1,1}}, true, 15, kFullMin, kFullMax, true, true, false, BlockMeshShape::Cube, 0},
+    {"game:wood",        {{0,2},{0,2},{1,2},{1,2},{1,2},{1,2}}, false, 0, kFullMin, kFullMax, true, true, false, BlockMeshShape::Cube, 0},
+    {"game:planks",      {{0,3},{0,3},{0,3},{0,3},{0,3},{0,3}}, false, 0, kFullMin, kFullMax, true, true, false, BlockMeshShape::Cube, 0},
+    {"game:brick",       {{2,1},{2,1},{2,1},{2,1},{2,1},{2,1}}, false, 0, kFullMin, kFullMax, true, true, false, BlockMeshShape::Cube, 0},
+    {"game:sand",        {{2,2},{2,2},{2,2},{2,2},{2,2},{2,2}}, false, 0, kFullMin, kFullMax, true, true, false, BlockMeshShape::Cube, 0},
+    {"game:stone_slab",  {{2,0},{2,0},{2,0},{2,0},{2,0},{2,0}}, false, 0, kSlabMin, kSlabMax, true, true, false, BlockMeshShape::Cube, 0},
+    {"game:glass",       {{1,3},{1,3},{1,3},{1,3},{1,3},{1,3}}, false, 0, kFullMin, kFullMax, true, false, true, BlockMeshShape::Cube, 0},
+    {"game:stone_slab_top", {{2,0},{2,0},{2,0},{2,0},{2,0},{2,0}}, false, 0, kSlabTopMin, kSlabTopMax, true, true, false, BlockMeshShape::Cube, 0},
     // Fluids: no blocksMotion, not opaque, translucent. Height encodes flow level for mesh/raycast.
     MakeWaterDef("game:water",   1.0f),
     MakeWaterDef("game:water_1", 7.0f / 8.0f),
@@ -50,6 +56,10 @@ const BlockDefinition kBuiltinBlocks[] = {
     MakeWaterDef("game:water_5", 3.0f / 8.0f),
     MakeWaterDef("game:water_6", 2.0f / 8.0f),
     MakeWaterDef("game:water_7", 1.0f / 8.0f),
+    // Cutout foliage: alpha discard on opaque pass; filters light a bit (unlike glass).
+    {"game:leaves", {{3,0},{3,0},{3,0},{3,0},{3,0},{3,0}}, false, 0, kFullMin, kFullMax, true, false, false, BlockMeshShape::Cube, 2},
+    // Cross plant: walk-through, still raycastable via collision AABB.
+    {"game:red_mushroom", {{3,1},{3,1},{3,1},{3,1},{3,1},{3,1}}, false, 0, kMushroomMin, kMushroomMax, false, false, false, BlockMeshShape::Cross, 0},
 };
 
 bool Covers1D(float n0, float n1, float s0, float s1, float eps) {
@@ -109,6 +119,14 @@ void InitBlockRegistry() {
     BlockId waterId = Block::AIR;
     if (!TryGetBlockId("game:water", waterId) || waterId != Block::WATER) {
         printf("InitBlockRegistry: builtin id mismatch (game:water)\n");
+    }
+    BlockId leavesId = Block::AIR;
+    if (!TryGetBlockId("game:leaves", leavesId) || leavesId != Block::LEAVES) {
+        printf("InitBlockRegistry: builtin id mismatch (game:leaves)\n");
+    }
+    BlockId mushId = Block::AIR;
+    if (!TryGetBlockId("game:red_mushroom", mushId) || mushId != Block::RED_MUSHROOM) {
+        printf("InitBlockRegistry: builtin id mismatch (game:red_mushroom)\n");
     }
 }
 

@@ -160,11 +160,7 @@ bool TryPlaceBlock(World& world, const Player& player, const Ray& ray, const Ray
     BlockId placeId = held;
     bool placeAdjacent = true;
 
-    // Clicking a fluid with a solid: place INTO that cell (dam / kill source).
-    if (IsFluid(hitId) && GetBlockDef(held).blocksMotion) {
-        placeId = held;
-        placeAdjacent = false;
-    } else if (IsSlab(held) && IsSlab(hitId)) {
+    if (IsSlab(held) && IsSlab(hitId)) {
         // TECH DEBT: merges to Block::STONE — wrong once other slab materials exist.
         const bool fillBottom =
             IsBottomSlab(hitId) && hit.faceHit == Face::TOP_FACE;
@@ -193,7 +189,14 @@ bool TryPlaceBlock(World& world, const Player& player, const Ray& ray, const Ray
             }
         }
 
-        if (!IsReplaceable(GetWorldBlock(world, placeX, placeY, placeZ))) {
+        BlockId dest = GetWorldBlock(world, placeX, placeY, placeZ);
+        if (!IsReplaceable(dest)) {
+            return false;
+        }
+
+        // Nothing sits on the water surface for now (no lilypads/boats yet).
+        // Replacing fluid in-cell is fine; placing into air above fluid is not.
+        if (dest == Block::AIR && IsFluid(GetWorldBlock(world, placeX, placeY - 1, placeZ))) {
             return false;
         }
     }

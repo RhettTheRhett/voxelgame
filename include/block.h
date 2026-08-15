@@ -54,6 +54,14 @@ enum Block : BlockId {
     WATER_5,
     WATER_6,
     WATER_7,
+    // Decorative / cutout — append-only for save id stability.
+    LEAVES,
+    RED_MUSHROOM,
+};
+
+enum class BlockMeshShape : uint8_t {
+    Cube = 0,
+    Cross = 1, // two diagonal quads (flowers, mushrooms)
 };
 
 struct BlockDefinition {
@@ -62,14 +70,19 @@ struct BlockDefinition {
     bool isLightSource;
     uint8_t lightLevel;
     // Local-space collision AABB within the unit cell (0..1). Full block = {0,0,0}..{1,1,1}.
+    // Also used for raycast pick bounds (even when blocksMotion is false).
     Vector3 collisionMin;
     Vector3 collisionMax;
     bool blocksMotion;       // participates in player collision when true
     // Opaque: hides neighbor faces + stops sky/block light from traveling through.
     // Independent of blocksMotion — glass collides but is not opaque.
     bool opaque;
-    // Translucent: alpha-blended mesh pass (glass, water). Cutout leaves come later.
+    // Translucent: alpha-blended mesh pass (glass, water). Cutout uses opaque pass + discard.
     bool translucent;
+    BlockMeshShape meshShape;
+    // Extra light levels lost when light enters this cell (on top of the usual -1).
+    // 0 = air/glass; leaves use a small value so canopy darkens without fully blocking.
+    uint8_t lightOpacity;
 };
 
 // Call once at startup before any GetBlockDef / TryGetBlockId use.

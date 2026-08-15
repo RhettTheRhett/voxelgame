@@ -108,6 +108,45 @@ void DrawHUD(const World& world, const Camera3D& camera, bool showNoiseDebug) {
     DrawLine(screenWidth/2 - 10, screenHeight/2, screenWidth/2 + 10, screenHeight/2, WHITE);
 }
 
+// Soft underwater veil: fully under = full tint; near the surface = only the
+// part of the screen below the waterline (smooth feather).
+void DrawUnderwaterOverlay(const World& world, Vector3 eye, float pitchDeg) {
+    float surfaceY = 0.0f;
+    float submersion = 0.0f;
+    if (!SampleWaterAtEye(world, eye, surfaceY, submersion)) return;
+
+    // Far above the surface — no tint.
+    if (submersion < -0.35f) return;
+
+    const int sw = GetScreenWidth();
+    const int sh = GetScreenHeight();
+    const Color base = { 25, 90, 170, 255 };
+
+    // Deep enough: whole frame.
+    if (submersion >= 0.28f) {
+        DrawRectangle(0, 0, sw, sh, Fade(base, 0.42f));
+        return;
+    }
+
+    // Waterline in screen space from submersion + look pitch.
+    const float pitchRad = pitchDeg * DEG2RAD;
+    float lineT = 0.5f - submersion * 1.8f + pitchRad * 0.55f;
+    if (lineT < 0.0f) lineT = 0.0f;
+    if (lineT > 1.0f) lineT = 1.0f;
+
+    const int lineY = (int)(lineT * (float)sh);
+    const int feather = sh / 12;
+    for (int i = 0; i < feather; i++) {
+        float a = (float)(i + 1) / (float)feather;
+        int y = lineY - feather + i;
+        if (y < 0 || y >= sh) continue;
+        DrawRectangle(0, y, sw, 1, Fade(base, 0.42f * a));
+    }
+    if (lineY < sh) {
+        DrawRectangle(0, lineY, sw, sh - lineY, Fade(base, 0.42f));
+    }
+}
+
 void DrawChunkBorders(int playerChunkX, int playerChunkZ, int radius) {
     for (int cx = playerChunkX - radius; cx <= playerChunkX + radius; cx++) {
         for (int cz = playerChunkZ - radius; cz <= playerChunkZ + radius; cz++) {
@@ -651,6 +690,7 @@ int main(){
                         DrawChunkBorders(playerChunkX, playerChunkZ, 3);
                     }
                 EndMode3D();
+                DrawUnderwaterOverlay(world, camera.position, pitch);
                 if (IsKeyPressed(KEY_TAB)) showNoiseDebug = !showNoiseDebug;
                 if (IsKeyPressed(KEY_G)) showChunkBorders = ! showChunkBorders;
                 if (IsKeyPressed(KEY_GRAVE)) world.manifest.timeOfDay += 1000;
@@ -685,6 +725,7 @@ int main(){
                     DrawWorld(world, mat);
                     DrawBoundingBox(player.GetBounds(), GREEN);
                 EndMode3D();
+                DrawUnderwaterOverlay(world, camera.position, pitch);
                 DrawHotbar(player, atlas);
 
                 if (DrawPauseMenu(settings, waitingBind, saveAndQuit)) {

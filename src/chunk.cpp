@@ -37,8 +37,9 @@ bool IsRaycastTarget(const World& world, int worldBlockX, int worldBlockY, int w
     int localX = 0, localZ = 0;
     const Chunk* chunk = FindChunkAt(world, worldBlockX, worldBlockY, worldBlockZ, localX, localZ);
     if (!chunk) return false;
-    BlockId id = chunk->blocks[localX][worldBlockY][localZ];
-    return GetBlockDef(id).blocksMotion || IsFluid(id);
+    const BlockDefinition& def = GetBlockDef(chunk->blocks[localX][worldBlockY][localZ]);
+    // Solids + cross plants (mushrooms): fluids stay pass-through for mining/placing.
+    return def.blocksMotion || def.meshShape == BlockMeshShape::Cross;
 }
 
 static uint8_t GetSunLight(const World& world, int worldBlockX, int worldBlockY, int worldBlockZ)
@@ -131,6 +132,90 @@ static void EmitFaceUVs(MeshWriter& w, int face, float u0, float v0, float u1, f
     }
 }
 
+// One vertical plant plane, double-sided. UVs are bound to corners by role
+// (bottom=stem, top=cap), not by triangle winding — so the back face can't
+// accidentally map stem along a horizontal edge.
+static void EmitDoubleSidedPlantPlane(
+    MeshWriter& w,
+    float blx, float bly, float blz,
+    float brx, float bry, float brz,
+    float trx, float try_, float trz,
+    float tlx, float tly, float tlz,
+    float u0, float vStem,
+    float u1, float vCap,
+    unsigned char sunShade,
+    unsigned char blockShade
+) {
+    int base = w.vertCursor / 3;
+
+    w.mesh.vertices[w.vertCursor++] = blx; w.mesh.vertices[w.vertCursor++] = bly; w.mesh.vertices[w.vertCursor++] = blz;
+    w.mesh.vertices[w.vertCursor++] = brx; w.mesh.vertices[w.vertCursor++] = bry; w.mesh.vertices[w.vertCursor++] = brz;
+    w.mesh.vertices[w.vertCursor++] = trx; w.mesh.vertices[w.vertCursor++] = try_; w.mesh.vertices[w.vertCursor++] = trz;
+    w.mesh.vertices[w.vertCursor++] = tlx; w.mesh.vertices[w.vertCursor++] = tly; w.mesh.vertices[w.vertCursor++] = tlz;
+
+    // Front
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 0);
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 1);
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 2);
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 0);
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 2);
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 3);
+    // Back (same verts/UVs, reversed winding)
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 0);
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 3);
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 2);
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 0);
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 2);
+    w.mesh.indices[w.indexCursor++] = (unsigned short)(base + 1);
+
+    for (int v = 0; v < 4; v++) {
+        w.mesh.colors[w.colorCursor++] = sunShade;
+        w.mesh.colors[w.colorCursor++] = sunShade;
+        w.mesh.colors[w.colorCursor++] = sunShade;
+        w.mesh.colors[w.colorCursor++] = blockShade;
+    }
+
+    // BL, BR = stem (atlas tile bottom); TR, TL = cap (atlas tile top)
+    w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = vStem;
+    w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = vStem;
+    w.mesh.texcoords[w.textureCursor++] = u1; w.mesh.texcoords[w.textureCursor++] = vCap;
+    w.mesh.texcoords[w.textureCursor++] = u0; w.mesh.texcoords[w.textureCursor++] = vCap;
+}
+
+static void EmitCrossPlant(
+    MeshWriter& w,
+    int x, int y, int z,
+    const BlockDefinition& def,
+    uint8_t sunLight,
+    uint8_t blockLight,
+    float atlasTileSize
+) {
+    const float MIN_LIGHT = 0.15f;
+    float sunFactor = MIN_LIGHT + (1.0f - MIN_LIGHT) * (sunLight / 15.0f);
+    unsigned char sunShade = (unsigned char)(220 * sunFactor);
+    unsigned char blockShade = (unsigned char)(255 * (blockLight / 15.0f));
+
+    Vector2 tile = def.FACE_TEX[0];
+    float u0 = tile.x * atlasTileSize;
+    float vTop = tile.y * atlasTileSize;           // cap (top of tile in atlas image)
+    float u1 = u0 + atlasTileSize;
+    float vStem = vTop + atlasTileSize;            // stem (bottom of tile)
+
+    const float x0 = (float)x, x1 = (float)x + 1.0f;
+    const float y0 = (float)y, y1 = (float)y + 1.0f;
+    const float z0 = (float)z, z1 = (float)z + 1.0f;
+
+    // Diagonal X — two planes, each emitted once with double-sided indices.
+    EmitDoubleSidedPlantPlane(
+        w,
+        x0, y0, z0,  x1, y0, z1,  x1, y1, z1,  x0, y1, z0,
+        u0, vStem, u1, vTop, sunShade, blockShade);
+    EmitDoubleSidedPlantPlane(
+        w,
+        x1, y0, z0,  x0, y0, z1,  x0, y1, z1,  x1, y1, z0,
+        u0, vStem, u1, vTop, sunShade, blockShade);
+}
+
 void BuildChunkMeshes(const Chunk& chunk, const World& world, int chunkX, int chunkZ,
                       Mesh& outOpaque, Mesh& outTranslucent) {
     const int MAX_FACES = (CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE / 2) * 6;
@@ -153,6 +238,16 @@ void BuildChunkMeshes(const Chunk& chunk, const World& world, int chunkX, int ch
         const bool fluid = IsFluid(blockType);
         const int worldBX = chunkX * CHUNK_SIZE + x;
         const int worldBZ = chunkZ * CHUNK_SIZE + z;
+
+        if (def.meshShape == BlockMeshShape::Cross) {
+            EmitCrossPlant(
+                w, x, y, z, def,
+                chunk.sunLight[x][y][z],
+                chunk.blockLight[x][y][z],
+                ATLAS_TILE_SIZE
+            );
+            continue;
+        }
 
         float c00 = 1.0f, c10 = 1.0f, c01 = 1.0f, c11 = 1.0f;
         if (fluid) {
@@ -181,14 +276,13 @@ void BuildChunkMeshes(const Chunk& chunk, const World& world, int chunkX, int ch
             }
 
             if (OccludesNeighborFace(blockType, neighborId, f)) continue;
-            // Glass-against-same-glass only (fluids handled below).
-            if (def.translucent && !fluid && neighborId == blockType) continue;
+            // Same non-opaque cube (glass / leaves): skip shared interior faces.
+            if (!def.opaque && !fluid && neighborId == blockType) continue;
 
             if (fluid && IsFluid(neighborId)) {
-                // No shared top/bottom between stacked water.
-                if (f == 0 || f == 1) continue;
-                // Keep a side face only when this cell is taller (step / shore).
-                if (WaterMeshHeight(blockType) <= WaterMeshHeight(neighborId) + 0.01f) continue;
+                // Never draw water-against-water faces (sides looked like blue walls
+                // when seen through the volume). Height shows on the sloped top only.
+                continue;
             }
 
             int baseVertex = w.vertCursor / 3;
@@ -370,9 +464,13 @@ void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChun
                 bool inSunlight = true;
                 for (int y = CHUNK_HEIGHT - 1; y >= 0; y--){
                     const BlockDefinition& def = GetBlockDef(chunk.blocks[x][y][z]);
-                    // Non-opaque (air, glass, future water/leaves) lets skylight continue.
+                    // Non-opaque lets skylight continue; lightOpacity (leaves) breaks the
+                    // full-15 column so BFS spreads with extra attenuation below.
                     if (!def.opaque) {
                         chunk.sunLight[x][y][z] = inSunlight ? 15 : 0;
+                        if (inSunlight && def.lightOpacity > 0) {
+                            inSunlight = false;
+                        }
                     } else {
                         if (inSunlight) {
                             chunk.sunLight[x][y][z] = 15;
@@ -411,8 +509,6 @@ void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChun
             int ny = node.worldY + d[1];
             int nz = node.worldZ + d[2];
             if (node.level <= 1) continue;
-
-            uint8_t newLevel = node.level - 1;
             if (ny < 0 || ny >= CHUNK_HEIGHT) continue;
 
             int nChunkX = (int)floor(nx / (float)CHUNK_SIZE);
@@ -427,8 +523,12 @@ void PropagateSunlight(World& world, const std::vector<ChunkCoord>& affectedChun
 
             const BlockDefinition& nDef = GetBlockDef(nChunk.blocks[lx][ny][lz]);
             if (nDef.isLightSource) continue;
-            // Skylight only travels through non-opaque cells (air/glass).
+            // Skylight only travels through non-opaque cells (air/glass/leaves).
             if (nDef.opaque) continue;
+
+            const uint8_t cost = (uint8_t)(1 + nDef.lightOpacity);
+            if (node.level <= cost) continue;
+            uint8_t newLevel = (uint8_t)(node.level - cost);
             if (nChunk.sunLight[lx][ny][lz] >= newLevel) continue;
 
             nChunk.sunLight[lx][ny][lz] = newLevel;
@@ -520,9 +620,7 @@ static void SpreadBlockLightBFS(World& world, std::queue<LightNode>& queue) {
             int nx = node.worldX + d[0];
             int ny = node.worldY + d[1];
             int nz = node.worldZ + d[2];
-            uint8_t newLevel = node.level - 1;
 
-            if (newLevel <= 0) continue;
             if (ny < 0 || ny >= CHUNK_HEIGHT) continue;
 
             int nChunkX = (int)floor(nx / (float)CHUNK_SIZE);
@@ -535,12 +633,17 @@ static void SpreadBlockLightBFS(World& world, std::queue<LightNode>& queue) {
             int lx = nx - nChunkX * CHUNK_SIZE;
             int lz = nz - nChunkZ * CHUNK_SIZE;
 
+            const BlockDefinition& nDef = GetBlockDef(nChunk.blocks[lx][ny][lz]);
+            const uint8_t cost = (uint8_t)(1 + nDef.lightOpacity);
+            if (node.level <= cost) continue;
+            uint8_t newLevel = (uint8_t)(node.level - cost);
+
             if (nChunk.blockLight[lx][ny][lz] >= newLevel) continue;
 
             nChunk.blockLight[lx][ny][lz] = newLevel;
             nChunk.meshDirty = true;
-            // Propagate through non-opaque (air/glass), not merely non-colliding.
-            if (!GetBlockDef(nChunk.blocks[lx][ny][lz]).opaque) {
+            // Propagate through non-opaque (air/glass/leaves), not merely non-colliding.
+            if (!nDef.opaque) {
                 queue.push({nx, ny, nz, newLevel});
             }
         }

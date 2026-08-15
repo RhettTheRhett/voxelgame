@@ -40,6 +40,8 @@ inline constexpr float PLAYER_JUMP_SPEED  = 8.37f;  // sqrt(2 * PLAYER_GRAVITY *
 
 inline constexpr float PLAYER_MOVE_SPEED = 4.3f;
 inline constexpr float PLAYER_RUN_MULTIPLIER = 1.45f;
+// Strafe only gets this fraction of the sprint *bonus* (1 → full run, 0.5 → halfway to run).
+inline constexpr float PLAYER_RUN_STRAFE_BONUS_SCALE = 0.5f;
 
 inline constexpr float PLAYER_JUMP_BUFFER = 0.12f;
 
@@ -49,9 +51,9 @@ inline constexpr float PLAYER_DEBUG_EYE_Y = 80.0f;
 
 // Fluid (water) movement — applied when the AABB overlaps any fluid cell.
 inline constexpr float PLAYER_WATER_MOVE_MULT     = 0.45f;  // horizontal speed scale
-inline constexpr float PLAYER_WATER_GRAVITY_MULT  = 0.35f;  // sink slower than air (no buoyancy)
-inline constexpr float PLAYER_WATER_SWIM_UP       = 5.0f;   // hold jump to swim up
-inline constexpr float PLAYER_WATER_TERMINAL      = 8.0f;   // max sink speed in water
+inline constexpr float PLAYER_WATER_GRAVITY_MULT  = 0.35f;  // sink slower than air 
+inline constexpr float PLAYER_WATER_SWIM_UP       = 2.0f;   // hold jump to swim up
+inline constexpr float PLAYER_WATER_TERMINAL      = 2.0f;   // max sink speed in water
 
 // Water simulation — ~2 game ticks between each flow step.
 inline constexpr float WATER_FLOW_DELAY = 2.0f / TICKS_PER_SECOND;

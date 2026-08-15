@@ -15,6 +15,9 @@ float WaterMeshHeight(BlockId id);    // local Y size for meshing / raycast
 // Corner height in local Y for sloped flowing tops (cx/cz = 0 or 1).
 float WaterCornerHeight(const World& world, int bx, int by, int bz, int cx, int cz);
 
+// Eye vs local water surface. submersion > 0 means underwater (blocks).
+bool SampleWaterAtEye(const World& world, Vector3 eye, float& outSurfaceY, float& outSubmersion);
+
 // Enqueue this cell + neighbors after a block edit (immediate).
 void NotifyWaterChange(World& world, int x, int y, int z);
 
